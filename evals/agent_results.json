@@ -1,0 +1,393 @@
+{
+  "meta": {
+    "generated_utc": "2026-09-21 07:01 UTC",
+    "git_commit": "b8d5b73",
+    "model": "gemini-3.5-flash-lite",
+    "judge": "mock",
+    "llm_backend": "live",
+    "free_tier_enforced": true,
+    "limits": {
+      "min_accuracy": 0.8,
+      "min_recall": 0.0,
+      "max_errors": 0
+    }
+  },
+  "summary": {
+    "n": 30,
+    "verdict_accuracy": 0.9333333333333333,
+    "accuracy_ci_low": 0.7867618227892791,
+    "accuracy_ci_high": 0.9815233646723066,
+    "mean_findings_recall": 0.9,
+    "errors": 0,
+    "by_type": {
+      "NORMAL": {
+        "n": 5,
+        "hits": 3,
+        "accuracy": 0.6,
+        "mean_recall": 1.0
+      },
+      "DUPLICATE": {
+        "n": 5,
+        "hits": 5,
+        "accuracy": 1.0,
+        "mean_recall": 0.6
+      },
+      "SPLIT_PO": {
+        "n": 5,
+        "hits": 5,
+        "accuracy": 1.0,
+        "mean_recall": 0.9
+      },
+      "PRICE_DRIFT": {
+        "n": 5,
+        "hits": 5,
+        "accuracy": 1.0,
+        "mean_recall": 1.0
+      },
+      "GHOST": {
+        "n": 5,
+        "hits": 5,
+        "accuracy": 1.0,
+        "mean_recall": 1.0
+      },
+      "CALC_DISCREPANCY": {
+        "n": 5,
+        "hits": 5,
+        "accuracy": 1.0,
+        "mean_recall": 0.9
+      }
+    }
+  },
+  "rows": [
+    {
+      "invoice_number": "INV-3001",
+      "fraud_type": "NORMAL",
+      "expected_verdict": "APPROVE",
+      "verdict": "APPROVE",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (APPROVE). 3/3 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3002",
+      "fraud_type": "NORMAL",
+      "expected_verdict": "APPROVE",
+      "verdict": "FLAG",
+      "verdict_match": false,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict mismatch: expected APPROVE, got FLAG. 3/3 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3003",
+      "fraud_type": "NORMAL",
+      "expected_verdict": "APPROVE",
+      "verdict": "FLAG",
+      "verdict_match": false,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict mismatch: expected APPROVE, got FLAG. 3/3 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3004",
+      "fraud_type": "NORMAL",
+      "expected_verdict": "APPROVE",
+      "verdict": "APPROVE",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (APPROVE). 3/3 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3005",
+      "fraud_type": "NORMAL",
+      "expected_verdict": "APPROVE",
+      "verdict": "APPROVE",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 7,
+      "error": null,
+      "notes": "verdict match (APPROVE). 3/3 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3006",
+      "fraud_type": "DUPLICATE",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 0.5,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+    },
+    {
+      "invoice_number": "INV-3007",
+      "fraud_type": "DUPLICATE",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3008",
+      "fraud_type": "DUPLICATE",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 0.5,
+      "steps": 7,
+      "error": null,
+      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+    },
+    {
+      "invoice_number": "INV-3009",
+      "fraud_type": "DUPLICATE",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 0.5,
+      "steps": 7,
+      "error": null,
+      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+    },
+    {
+      "invoice_number": "INV-3010",
+      "fraud_type": "DUPLICATE",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 0.5,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+    },
+    {
+      "invoice_number": "INV-3011",
+      "fraud_type": "SPLIT_PO",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3012",
+      "fraud_type": "SPLIT_PO",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3013",
+      "fraud_type": "SPLIT_PO",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3014",
+      "fraud_type": "SPLIT_PO",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3015",
+      "fraud_type": "SPLIT_PO",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 0.5,
+      "steps": 7,
+      "error": null,
+      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: threshold proximity suggests approval-limit evasion"
+    },
+    {
+      "invoice_number": "INV-3016",
+      "fraud_type": "PRICE_DRIFT",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3017",
+      "fraud_type": "PRICE_DRIFT",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3018",
+      "fraud_type": "PRICE_DRIFT",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3019",
+      "fraud_type": "PRICE_DRIFT",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 7,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3020",
+      "fraud_type": "PRICE_DRIFT",
+      "expected_verdict": "FLAG",
+      "verdict": "FLAG",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (FLAG). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3021",
+      "fraud_type": "GHOST",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 7,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3022",
+      "fraud_type": "GHOST",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3023",
+      "fraud_type": "GHOST",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3024",
+      "fraud_type": "GHOST",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 4,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3025",
+      "fraud_type": "GHOST",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3026",
+      "fraud_type": "CALC_DISCREPANCY",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 7,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3027",
+      "fraud_type": "CALC_DISCREPANCY",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 0.5,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (REJECT). 1/2 findings recalled. missing: stated tax $749.60 inconsistent with 8% of subtotal ($649.60)"
+    },
+    {
+      "invoice_number": "INV-3028",
+      "fraud_type": "CALC_DISCREPANCY",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3029",
+      "fraud_type": "CALC_DISCREPANCY",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    },
+    {
+      "invoice_number": "INV-3030",
+      "fraud_type": "CALC_DISCREPANCY",
+      "expected_verdict": "REJECT",
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
+      "error": null,
+      "notes": "verdict match (REJECT). 2/2 findings recalled"
+    }
+  ]
+}

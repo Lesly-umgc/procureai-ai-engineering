@@ -1,0 +1,232 @@
+# ProcureAI — Enterprise Invoice Auditing & Compliance Engine
+
+An agentic invoice-auditing system that combines a tuned XGBoost anomaly
+classifier with a ReAct LLM auditor over deterministic verification tools.
+Every headline number below is measured by a rerunnable script in this repo.
+
+## Results
+
+| Metric | Measured | How |
+|---|---|---|
+| Anomaly-classification accuracy | **97.59%** (0.88 ROC AUC), held-out 20% split of 250,000 invoices | `proofs/prove_accuracy.py` |
+| Audit-prep time reduction | **99.87%** vs a 4-minute-per-invoice manual baseline | `proofs/prove_efficiency.py` |
+| Agentic audit verdict accuracy | **93.3%** (28/30, 95% Wilson CI 78.7%–98.2%) on the 30-invoice golden set | `evals/agent_report.md` |
+| Agentic audit findings recall | **0.900** mean, 0 agent errors | `evals/agent_report.md` |
+| Test suite | **53 tests**, all green, no live API or database | `pytest tests/` |
+
+The agent eval ran live against Gemini `gemini-3.5-flash-lite` (free tier)
+with a deterministic rule-based judge. 100% verdict accuracy on all five
+fraud classes; the two misses were `NORMAL` false positives (`INV-3002`,
+`INV-3003`). See `evals/agent_report.md` for the full ledger and
+`docs/PROJECT_DOCUMENTATION.md` §4.3 for the run history.
+
+## Features
+
+- **Hybrid anomaly detection** — XGBoost (500 trees, depth 6, lr 0.05) on
+  engineered invoice features: PO-match ratios, price variance, threshold
+  proximity, tax-ratio consistency.
+- **ReAct agent auditor** — a Gemini-powered loop over 5 deterministic
+  tools (`score_invoice_xgb`, `verify_arithmetic`, `find_duplicates`,
+  `check_po`, `assess_vendor`) plus 2 optional pgvector retrieval tools
+  (`find_similar_invoices`, `retrieve_policy`), emitting a structured
+  `APPROVE` / `FLAG` / `REJECT` audit brief with findings and evidence.
+- **Six fraud classes** — `CALC_DISCREPANCY`, `DUPLICATE`, `GHOST`,
+  `NORMAL`, `PRICE_DRIFT`, `SPLIT_PO`, all implemented for real in the
+  data synthesizer and the agent's toolbelt.
+- **Semantic retrieval** — PostgreSQL 16 + pgvector, 384-d MiniLM
+  embeddings for invoice history and an 8-snippet synthetic policy corpus,
+  so verdicts can cite policy sections. Verified against a live database;
+  degrades gracefully when the DB is unreachable.
+- **Honest serving** — `POST /audit` without a `GEMINI_API_KEY` returns a
+  503, never a fabricated verdict. Per-audit tracing records wall latency,
+  LLM/tool call counts, tokens (honest nulls when the backend reports none),
+  and free-tier cost.
+- **Engineering rigor** — 53-test pytest suite, GitHub Actions CI
+  (compile → secret scan → tests), and a Docker Compose reviewer stack
+  with least-privilege Postgres first boot.
+
+## Architecture
+
+```
+PDF / scanned receipt
+        │  Tesseract OCR (document_ai.py)
+        ▼
+raw text + 384-d MiniLM embedding ──► PostgreSQL 16 + pgvector
+        │
+        ▼
+feature engineering ──► XGBoost risk score (anomaly_engine.py)
+        │  score > 0.80
+        ▼
+ReAct agent (Gemini) ──► 5 deterministic tools + 2 retrieval tools
+        │
+        ▼
+structured audit brief ──► FastAPI (/audit) ──► Streamlit dashboard
+```
+
+Document understanding is Tesseract OCR + embeddings; LayoutLMv3 token
+classification is planned future work (tracked in
+`docs/PROJECT_DOCUMENTATION.md` FR-10) and is not wired in.
+
+## Repository structure
+
+```
+├── api/                 FastAPI app (/health, /metrics, /invoices, /audit)
+├── core/                anomaly_engine.py, document_ai.py, legacy auditor
+│   └── agent/           ReAct auditor, 5 deterministic tools, 2 retrieval
+│                        tools, free-tier LLM throttling
+├── database/            SQLAlchemy models, DDL, pgvector indexes
+├── dashboard/           Streamlit executive dashboard
+├── docker/              Postgres first-boot hook (least-privilege role setup)
+├── docs/                full project documentation
+├── evals/               golden set (30 invoices), judges, eval runners, reports
+├── policies/            8 synthetic policy snippets (retrieval corpus)
+├── proofs/              rerunnable accuracy + efficiency proofs
+├── scripts/             data synthesis, seeding, demos, secret-scan CI script
+├── tests/               53-test pytest suite
+├── Dockerfile
+├── docker-compose.yml   one-command reviewer stack
+└── requirements*.txt
+```
+
+## Quickstart
+
+### Option A — Docker Compose (reviewer stack)
+
+```bash
+git clone https://github.com/Lesly-umgc/procureai-ai-engineering.git
+cd ProcureAI
+docker compose up --build
+```
+
+This brings up Postgres 16 + pgvector (least-privilege first boot via
+`docker/db-init/01-procureai.sh`), a one-shot init/seed service (tables,
+IVFFlat indexes, 8 embedded policy snippets), the FastAPI API on
+`http://localhost:8000`, and the Streamlit dashboard on
+`http://localhost:8501`. For live Gemini audits, export your key first:
+
+```bash
+export GEMINI_API_KEY=your_key_here   # free-tier key from https://aistudio.google.com
+docker compose up --build
+```
+
+Without a key, `/metrics`, `/invoices`, and the mock-LLM paths work;
+`POST /audit` returns an honest 503.
+
+### Option B — local virtualenv
+
+```bash
+git clone https://github.com/Lesly-umgc/procureai-ai-engineering.git
+cd ProcureAI
+python3 -m venv venv && source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# configure (see .env.example)
+cp .env.example .env   # then fill in GEMINI_API_KEY
+
+# database (PostgreSQL 16 + pgvector required)
+createdb procureai_db
+export PYTHONPATH=.
+python3 database/db.py          # schema + indexes
+python3 scripts/seed_policies.py
+
+# run
+uvicorn api.main:app --host 127.0.0.1 --port 8000
+streamlit run dashboard/app.py   # separate terminal
+```
+
+To generate the full 250K-invoice dataset (streams in 5K batches):
+
+```bash
+python3 scripts/generate_data.py
+```
+
+## Configuration
+
+All secrets come from the environment — nothing is committed. Copy
+`.env.example` to `.env` and fill in values.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GEMINI_API_KEY` | *(required for live audits)* | Google AI Studio key (free tier) |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | LLM model; restricted to the free-tier allowlist in `core/agent/llm_throttle.py` |
+| `DATABASE_URL` | `postgresql+psycopg2://procureai:procureai@localhost:5432/procureai_db` | SQLAlchemy connection string |
+| `APP_DB_USER` / `APP_DB_PASSWORD` / `APP_DB_NAME` | `procureai` / `procureai` / `procureai_db` | Compose app-role credentials (override for anything beyond a local demo) |
+| `PROCUREAI_API_URL` | `http://localhost:8000` | Dashboard → API base URL |
+| `AGENT_MAX_STEPS` | `8` | ReAct loop step cap |
+| `GEMINI_FREE_TIER_RPM` | `15` | Client-side rate limit for the free tier |
+
+## API reference
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | liveness |
+| GET | `/metrics` | dataset/audit counters |
+| GET | `/invoices` | invoice listing |
+| POST | `/audit` | full agentic audit (verdict, findings, evidence, trace, degraded state) |
+| POST | `/audit/run` | audit pipeline entrypoint |
+
+Every `POST /audit` response carries a `trace` object: wall latency,
+LLM/tool call counts, token usage, and cost (0.0 on the free tier).
+
+## Evaluation
+
+Agent evals use a 30-invoice golden set (`evals/golden_invoices.json`,
+5 per fraud class) and a deterministic rule-based judge:
+
+```bash
+# fast, deterministic: scripted LLM + mock judge (no API key needed)
+python3 evals/run_agent_evals.py --judge mock
+
+# live: real Gemini agent, mock judge
+export GEMINI_API_KEY=your_key_here
+python3 evals/run_agent_evals.py --judge mock --live
+```
+
+Reports land in `evals/agent_report.md` / `evals/agent_results.json`.
+Known limitations are documented, not hidden: the two `NORMAL` false
+positives, weaker duplicate findings recall (0.600), and evaluator-label
+leakage in the duplicate-history fixture construction
+(`docs/PROJECT_DOCUMENTATION.md` §4.3) — the 93.3% stands as the measured
+result of the corrected-tool run, not a final number.
+
+Accuracy and efficiency proofs:
+
+```bash
+python3 proofs/prove_accuracy.py    # 97.59% accuracy / 0.88 ROC AUC claim
+python3 proofs/prove_efficiency.py  # 99.87% time-reduction claim
+```
+
+Efficiency methodology: automated triage wall-clock extrapolated to 250K
+invoices vs a documented 4-minute-per-invoice manual baseline
+(parameter `--manual-min`; an industry assumption, not a measurement).
+
+## Testing
+
+```bash
+python -m pytest tests/ -q          # 53 tests, no live API or database
+python -m compileall -q api core tests scripts evals proofs
+bash scripts/ci_secret_scan.sh      # fails on committed key patterns
+```
+
+CI runs all three on every push/PR.
+
+## Roadmap
+
+- Calibrate the agent to cut the two `NORMAL` false positives without
+  harming fraud recall.
+- Rebuild duplicate-history fixtures without evaluator-label leakage and
+  rerun the eval as the final number.
+- Decide whether pgvector retrieval should be mandatory in the agent loop
+  (currently optional; costs extra LLM steps/quota per invoice).
+- Re-embed the full 250K invoice corpus with real embeddings (stored
+  embeddings are placeholders; verification used a real 3K subset).
+- LayoutLMv3 document understanding behind an off-by-default feature flag.
+- Reviewer setup documentation.
+
+See `docs/PROJECT_DOCUMENTATION.md` §7 for the full sequenced roadmap and
+§8 for the changelog.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -1,0 +1,14 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+uvicorn.log
+streamlit.log
+.DS_Store
+
+# PDFs (Keep locally as reference, exclude from git/GitHub)
+*.pdf
+resources/*.pdf

@@ -1,0 +1,105 @@
+# ProcureAI — one-command reviewer setup.
+#
+#   docker compose up --build
+#
+# What you get:
+#   db        Postgres 16 + pgvector, with a persisted volume.
+#             Privilege design (least privilege, verified 2026-09-21):
+#               * the container boots as the stock `postgres` SUPERUSER,
+#                 which exists only to run docker/db-init/01-procureai.sh
+#                 once at first start (mounted into
+#                 /docker-entrypoint-initdb.d);
+#               * that hook creates a NON-SUPERUSER `procureai` role, a
+#                 `procureai_db` database owned by it, and the `vector`
+#                 extension (creating an extension requires superuser);
+#               * every other service connects as the unprivileged
+#                 `procureai` role. Nothing in the app path is superuser.
+#   init-db   one-shot: creates tables + IVFFlat indexes, then seeds
+#             the 8 synthetic policy snippets (real MiniLM embeddings;
+#             downloads ~90MB of weights on first run). Runs as the
+#             non-superuser app role; the vector extension already exists
+#             (see above), so its CREATE EXTENSION IF NOT EXISTS is a no-op.
+#   api       FastAPI on :8000 — POST /audit runs the real ReAct agent
+#   dashboard Streamlit on :8501 — talks to the api service
+#
+# Live Gemini audits need a key: GEMINI_API_KEY=... docker compose up --build
+# Without it, /metrics, /invoices and the mock-LLM paths work; POST /audit
+# returns an honest 503 (never a fabricated verdict).
+#
+# Credentials: APP_DB_USER / APP_DB_PASSWORD / APP_DB_NAME default to
+# procureai / procureai / procureai_db for reviewer convenience. Override
+# them (and POSTGRES_BOOTSTRAP_PASSWORD) for anything beyond a local demo.
+# NOTE: APP_DB_PASSWORD is embedded in DATABASE_URL, so keep it URL-safe
+# (no @ : / ? # characters) or percent-encode it yourself.
+#
+# Model selection mirrors the eval harness (see run4_live_launcher.py):
+# GEMINI_MODEL defaults to gemini-3.5-flash-lite and the free-tier allowlist
+# is extended the same way. Override both in the environment if needed.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      # Bootstrap superuser — used ONLY by the first-boot init hook.
+      # Never used by the application itself.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_BOOTSTRAP_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+      # Application role / database created (non-superuser) by the hook.
+      APP_DB_USER: ${APP_DB_USER:-procureai}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-procureai}
+      APP_DB_NAME: ${APP_DB_NAME:-procureai_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  init-db:
+    build: .
+    # init_db() creates all tables + IVFFlat indexes; the vector extension
+    # and the non-superuser app role already exist (created by the
+    # privileged first-boot hook docker/db-init/01-procureai.sh).
+    # seed_policies.py then embeds the synthetic policy corpus for real.
+    command: >
+      bash -c "python -c 'from database.db import init_db; init_db()'
+      && python scripts/seed_policies.py
+      && echo 'DB init + policy seed complete'"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${APP_DB_USER:-procureai}:${APP_DB_PASSWORD:-procureai}@db:5432/${APP_DB_NAME:-procureai_db}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: .
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${APP_DB_USER:-procureai}:${APP_DB_PASSWORD:-procureai}@db:5432/${APP_DB_NAME:-procureai_db}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      GEMINI_FREE_TIER_MODELS: ${GEMINI_FREE_TIER_MODELS:-gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-flash-latest,gemini-3.5-flash-lite}
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+
+  dashboard:
+    build: .
+    command: streamlit run dashboard/app.py --server.port=8501 --server.address=0.0.0.0
+    environment:
+      PROCUREAI_API_URL: http://api:8000
+    depends_on:
+      - api
+    ports:
+      - "8501:8501"
+
+volumes:
+  pgdata:
