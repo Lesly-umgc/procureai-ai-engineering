@@ -16,7 +16,7 @@ Two judge implementations:
 
 Select with the ``JUDGE_MODE`` env var: ``mock`` (default) or ``gemini``.
 ``GeminiJudge`` requires ``GEMINI_API_KEY``; the model defaults to ``GEMINI_MODEL``
-or ``gemini-3.1-flash-lite`` (same default as core/agent_auditor.py).
+or ``gemini-3.5-flash-lite`` (same default as core/agentic_auditor.py).
 """
 
 import json
@@ -151,7 +151,7 @@ class GeminiJudge:
                 "GeminiJudge needs GEMINI_API_KEY (or pass api_key=). "
                 "Use JUDGE_MODE=mock for the credential-free judge."
             )
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     def _call(self, user_text):
         url = GEMINI_API_URL_TMPL.format(model=self.model) + f"?key={self.api_key}"

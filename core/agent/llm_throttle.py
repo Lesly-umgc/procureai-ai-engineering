@@ -30,7 +30,7 @@ FREE_TIER_MODELS = frozenset(
     m.strip()
     for m in os.getenv(
         "GEMINI_FREE_TIER_MODELS",
-        "gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-2.5-flash,"
+        "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-2.5-flash-lite,gemini-2.5-flash,"
         "gemini-2.0-flash,gemini-2.0-flash-lite,gemini-flash-latest",
     ).split(",")
     if m.strip()
@@ -117,7 +117,7 @@ class GeminiClient:
                 "Run with --mock-llm for a credential-free harness self-test."
             )
         self.model = assert_free_tier(
-            model or os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+            model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
         )
         self.base_url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"

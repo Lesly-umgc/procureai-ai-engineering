@@ -378,7 +378,7 @@ def main() -> int:
                      "Run with --mock-llm for a credential-free harness self-test."), file=sys.stderr)
         return 2
     try:
-        model = assert_free_tier(os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite"))
+        model = assert_free_tier(os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"))
     except Exception as e:
         print(redact(f"ERROR: {e}"), file=sys.stderr)
         return 2

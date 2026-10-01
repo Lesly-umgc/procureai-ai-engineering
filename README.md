@@ -143,6 +143,49 @@ To generate the full 250K-invoice dataset (streams in 5K batches):
 python3 scripts/generate_data.py
 ```
 
+## Demo
+
+`demo/procureai-demo.mp4` is a screen recording of the real system: the
+FastAPI API and Streamlit dashboard started with the commands above, then two
+live audits through `POST /audit` — a ghost-vendor invoice the LangGraph ReAct
+agent REJECTs (unregistered vendor, unverified tax ID, decisive per the
+calibrated policy) and a clean invoice from an approved vendor it APPROVEs.
+Every terminal byte in the video is captured output from the running services,
+not a mockup; the 93.3% card reads its figures from
+`evals/agent_results_llmjudge_r3.json`.
+
+To reproduce the same run against the Compose stack:
+
+```bash
+export GEMINI_API_KEY=your_key_here
+docker compose up --build
+# scenario 1: ghost vendor -> REJECT
+curl -s -X POST localhost:8000/audit -H 'Content-Type: application/json' -d '{
+  "invoice": {"invoice_id":"INV-DEMO-901","vendor_id":"V-GHOST-77","po_id":"PO-5510",
+              "subtotal":45000.0,"tax_amount":3750.0,"total_amount":48750.0,
+              "invoice_date":"2026-09-28",
+              "line_items":[{"description":"Industrial valves","quantity":150,
+                             "unit_price":300.0,"line_total":45000.0,"po_unit_price":295.0}]},
+  "po": {"po_id":"PO-5510","amount_limit":50000.0},
+  "vendor": {"vendor_id":"V-GHOST-77","vendor_name":"QuickSupply Trading Co.",
+             "risk_rating":0.85,"on_file":false,"tax_id":"UNVERIFIED"},
+  "history": []}'
+# scenario 2: approved vendor, PO-aligned pricing -> APPROVE
+curl -s -X POST localhost:8000/audit -H 'Content-Type: application/json' -d '{
+  "invoice": {"invoice_id":"INV-DEMO-902","vendor_id":"V-ACME-014","po_id":"PO-5520",
+              "subtotal":4800.0,"tax_amount":384.0,"total_amount":5184.0,
+              "invoice_date":"2026-09-29",
+              "line_items":[{"description":"Office supplies","quantity":48,
+                             "unit_price":100.0,"line_total":4800.0,"po_unit_price":100.0}]},
+  "po": {"po_id":"PO-5520","amount_limit":15000.0},
+  "vendor": {"vendor_id":"V-ACME-014","vendor_name":"Acme Industrial Ltd.",
+             "risk_rating":0.12,"on_file":true,"tax_id":"TAX-88412-CA"},
+  "history": []}'
+```
+
+Then open `http://localhost:8501` — the same dashboard: KPI cards, invoice
+inspector, and the on-demand agentic audit (the same agent, one click).
+
 ## Configuration
 
 All secrets come from the environment — nothing is committed. Copy

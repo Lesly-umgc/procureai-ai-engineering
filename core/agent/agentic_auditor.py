@@ -36,7 +36,7 @@ compiled once per ``AuditAgent``; ``audit()`` just invokes it.
 Unlike the legacy single-prompt auditor, this agent reasons about what
 evidence it needs, calls tools, observes results, and only then verdicts.
 The LLM reasons; the tools compute. Free-tier Gemini model only
-(GEMINI_MODEL env, default gemini-3.1-flash-lite).
+(GEMINI_MODEL env, default gemini-3.5-flash-lite).
 """
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ from langgraph.graph import END, StateGraph
 from core.agent.tools import TOOLS, tool_descriptions
 from core.agent.llm_throttle import GeminiClient, redact
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 # Note: free-tier enforcement happens inside GeminiClient.__init__ (via
 # llm_throttle.assert_free_tier) so that misconfiguration fails with a clean
 # config error instead of at import time.
