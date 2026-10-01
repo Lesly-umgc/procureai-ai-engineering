@@ -151,8 +151,7 @@ live audits through `POST /audit` — a ghost-vendor invoice the LangGraph ReAct
 agent REJECTs (unregistered vendor, unverified tax ID, decisive per the
 calibrated policy) and a clean invoice from an approved vendor it APPROVEs.
 Every terminal byte in the video is captured output from the running services,
-not a mockup; the 93.3% card reads its figures from
-`evals/agent_results_llmjudge_r3.json`.
+not a mockup.
 
 To reproduce the same run against the Compose stack:
 
