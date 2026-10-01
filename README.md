@@ -155,6 +155,14 @@ calibrated policy) and a clean invoice from an approved vendor it APPROVEs.
 Every terminal byte in the video is captured output from the running services,
 not a mockup.
 
+`demo/procureai-dashboard-demo.mp4` is the visual walkthrough: `docker compose
+up --build`, the dashboard opening live on the 500-invoice sample seed, the
+Invoice Inspector, a flagged invoice's agent findings, and a live `POST /audit`
+verdict — no narration, just the product in action.
+
+Architecture diagrams: `docs/architecture-tech-stack.png` (technology layers)
+and `docs/architecture-project-flow.png` (invoice input → verdict flow).
+
 To reproduce the same run against the Compose stack:
 
 ```bash
