@@ -95,7 +95,7 @@ classification is planned future work (tracked in
 ### Option A — Docker Compose (reviewer stack)
 
 ```bash
-git clone https://github.com/Lesly-umgc/procure-ai-agentic-invoice-auditor-compliance-platform.git
+git clone https://github.com/Manthan-hub/procure-ai-agentic-invoice-auditor-compliance-platform.git
 cd procure-ai-agentic-invoice-auditor-compliance-platform
 docker compose up --build
 ```
@@ -119,7 +119,7 @@ Without a key, `/metrics`, `/invoices`, and the mock-LLM paths work;
 ### Option B — local virtualenv
 
 ```bash
-git clone https://github.com/Lesly-umgc/procure-ai-agentic-invoice-auditor-compliance-platform.git
+git clone https://github.com/Manthan-hub/procure-ai-agentic-invoice-auditor-compliance-platform.git
 cd procure-ai-agentic-invoice-auditor-compliance-platform
 python3 -m venv venv && source venv/bin/activate
 pip install --upgrade pip
