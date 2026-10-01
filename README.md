@@ -1,4 +1,4 @@
-# ProcureAI — Enterprise Invoice Auditing & Compliance Engine
+# Procure AI - Agentic Invoice Auditor & Compliance Platform
 
 An agentic invoice-auditing system that combines a tuned XGBoost anomaly
 classifier with a LangGraph ReAct LLM auditor over deterministic verification tools.
@@ -95,8 +95,8 @@ classification is planned future work (tracked in
 ### Option A — Docker Compose (reviewer stack)
 
 ```bash
-git clone https://github.com/Lesly-umgc/procureai-ai-engineering.git
-cd procureai-ai-engineering
+git clone https://github.com/Lesly-umgc/procure-ai-agentic-invoice-auditor-compliance-platform.git
+cd procure-ai-agentic-invoice-auditor-compliance-platform
 docker compose up --build
 ```
 
@@ -119,8 +119,8 @@ Without a key, `/metrics`, `/invoices`, and the mock-LLM paths work;
 ### Option B — local virtualenv
 
 ```bash
-git clone https://github.com/Lesly-umgc/procureai-ai-engineering.git
-cd procureai-ai-engineering
+git clone https://github.com/Lesly-umgc/procure-ai-agentic-invoice-auditor-compliance-platform.git
+cd procure-ai-agentic-invoice-auditor-compliance-platform
 python3 -m venv venv && source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
