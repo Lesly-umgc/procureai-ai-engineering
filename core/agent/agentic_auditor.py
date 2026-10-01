@@ -419,11 +419,14 @@ class AuditAgent:
                 # The XGBoost tool needs amount_limit (from the PO) and
                 # risk_rating (from the vendor master) — enrich the invoice
                 # dict with the audit context so it scores on real features.
+                # NOTE: explicit None-checks, not setdefault: pydantic
+                # model_dump() emits Optional fields as explicit Nones, and
+                # setdefault would keep the None and crash float().
                 enriched = dict(context["invoice"])
-                enriched.setdefault("amount_limit",
-                                    context.get("po", {}).get("amount_limit", 0))
-                enriched.setdefault("risk_rating",
-                                    context.get("vendor", {}).get("risk_rating", 0))
+                if enriched.get("amount_limit") is None:
+                    enriched["amount_limit"] = context.get("po", {}).get("amount_limit", 0)
+                if enriched.get("risk_rating") is None:
+                    enriched["risk_rating"] = context.get("vendor", {}).get("risk_rating", 0)
                 return fn(enriched)
             return fn(context["invoice"])
         except Exception as e:  # tools must never crash the loop

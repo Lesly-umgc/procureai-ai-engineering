@@ -38,6 +38,19 @@ def _get_engine() -> AnomalyScoringEngine:
 # ---------------------------------------------------------------------------
 # Tool: XGBoost anomaly score
 # ---------------------------------------------------------------------------
+def _safe_float(v: Any, default: float = 0.0) -> float:
+    """float() that tolerates None / missing / malformed values.
+
+    Pydantic model_dump() emits explicit Nones for unset Optional fields,
+    so invoice.get("amount_limit", 0) can still hand us None — float(None)
+    would crash the tool. Tools must never crash the audit loop.
+    """
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
 def score_invoice_xgb(invoice: Dict[str, Any]) -> Dict[str, Any]:
     """Score one invoice with the trained XGBoost model.
 
@@ -48,10 +61,10 @@ def score_invoice_xgb(invoice: Dict[str, Any]) -> Dict[str, Any]:
     if eng.model is None:
         return {"error": "model not trained — call train first", "anomaly_score": 0.0}
     score = eng.score_invoice(
-        subtotal=float(invoice.get("subtotal", 0)),
-        total_amount=float(invoice.get("total_amount", 0)),
-        amount_limit=float(invoice.get("amount_limit", 0)),
-        risk_rating=float(invoice.get("risk_rating", 0)),
+        subtotal=_safe_float(invoice.get("subtotal")),
+        total_amount=_safe_float(invoice.get("total_amount")),
+        amount_limit=_safe_float(invoice.get("amount_limit")),
+        risk_rating=_safe_float(invoice.get("risk_rating")),
     )
     score = float(score)
     risk_level = "high" if score >= 0.7 else "medium" if score >= 0.4 else "low"
