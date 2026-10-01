@@ -74,14 +74,22 @@ st.markdown("Autonomous AI auditor for invoice fraud detection, purchase order c
 # Fetch metrics
 try:
     metrics_res = requests.get(f"{API_BASE_URL}/metrics", timeout=5).json()
+    metrics_live = True
 except Exception:
+    # API unreachable (e.g. dashboard started without the API/DB).
+    # Show clearly-labeled sample figures, never silent fake "live" data.
+    metrics_live = False
     metrics_res = {
         "total_invoices": 250000,
         "flagged_invoices": 15000,
         "total_audits": 1420,
         "flagged_fraud_amount": 14250000.50,
-        "audit_prep_time_reduction_pct": 78.5
+        "audit_prep_time_reduction_pct": 99.87
     }
+
+if not metrics_live:
+    st.warning("⚠️ API unreachable — showing sample figures. "
+               "Start the API (`docker compose up --build`) for live metrics.")
 
 # Executive KPI Cards
 col1, col2, col3, col4 = st.columns(4)
