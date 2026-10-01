@@ -102,7 +102,9 @@ docker compose up --build
 
 This brings up Postgres 16 + pgvector (least-privilege first boot via
 `docker/db-init/01-procureai.sh`), a one-shot init/seed service (tables,
-IVFFlat indexes, 8 embedded policy snippets), the FastAPI API on
+IVFFlat indexes, 8 embedded policy snippets, plus 500 synthetic `SAMPLE-`
+invoices with real MiniLM embeddings so the dashboard opens with live
+data — set `SEED_SAMPLE_INVOICES=0` to skip), the FastAPI API on
 `http://localhost:8000`, and the Streamlit dashboard on
 `http://localhost:8501`. For live Gemini audits, export your key first:
 

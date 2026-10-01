@@ -18,7 +18,9 @@
 #                 `procureai` role. Nothing in the app path is superuser.
 #   init-db   one-shot: creates tables + IVFFlat indexes, then seeds
 #             the 8 synthetic policy snippets (real MiniLM embeddings;
-#             downloads ~90MB of weights on first run). Runs as the
+#             downloads ~90MB of weights on first run) and 500 synthetic
+#             SAMPLE- invoices (SEED_SAMPLE_INVOICES=0 to skip) so the
+#             dashboard opens with live data. Runs as the
 #             non-superuser app role; the vector extension already exists
 #             (see above), so its CREATE EXTENSION IF NOT EXISTS is a no-op.
 #   api       FastAPI on :8000 — POST /audit runs the LangGraph ReAct agent
@@ -73,7 +75,8 @@ services:
     command: >
       bash -c "python -c 'from database.db import init_db; init_db()'
       && python scripts/seed_policies.py
-      && echo 'DB init + policy seed complete'"
+      && python scripts/seed_sample_invoices.py
+      && echo 'DB init + policy seed + sample invoice seed complete'"
     environment:
       DATABASE_URL: postgresql+psycopg2://${APP_DB_USER:-procureai}:${APP_DB_PASSWORD:-procureai}@db:5432/${APP_DB_NAME:-procureai_db}
     depends_on:

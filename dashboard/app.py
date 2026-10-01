@@ -128,6 +128,9 @@ st.divider()
 
 # Invoice Inspection & Filtering
 st.subheader("📋 Invoice Anomaly & Compliance Inspector")
+st.caption("Sample data: the one-command setup seeds 500 synthetic `SAMPLE-` "
+           "invoices so the dashboard is live out of the box "
+           "(`SEED_SAMPLE_INVOICES=0` in the environment skips the seed).")
 
 status_filter = st.selectbox("Filter by Status", ["ALL", "FLAGGED", "APPROVED", "PENDING"])
 limit_val = st.slider("Results Limit", 10, 100, 50)
