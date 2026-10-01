@@ -96,7 +96,7 @@ classification is planned future work (tracked in
 
 ```bash
 git clone https://github.com/Lesly-umgc/procureai-ai-engineering.git
-cd ProcureAI
+cd procureai-ai-engineering
 docker compose up --build
 ```
 
@@ -118,7 +118,7 @@ Without a key, `/metrics`, `/invoices`, and the mock-LLM paths work;
 
 ```bash
 git clone https://github.com/Lesly-umgc/procureai-ai-engineering.git
-cd ProcureAI
+cd procureai-ai-engineering
 python3 -m venv venv && source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt

@@ -19,7 +19,7 @@
 #             downloads ~90MB of weights on first run). Runs as the
 #             non-superuser app role; the vector extension already exists
 #             (see above), so its CREATE EXTENSION IF NOT EXISTS is a no-op.
-#   api       FastAPI on :8000 — POST /audit runs the real ReAct agent
+#   api       FastAPI on :8000 — POST /audit runs the LangGraph ReAct agent
 #   dashboard Streamlit on :8501 — talks to the api service
 #
 # Live Gemini audits need a key: GEMINI_API_KEY=... docker compose up --build
