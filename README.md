@@ -159,9 +159,12 @@ not a mockup.
 up --build`, the dashboard opening live on the 500-invoice sample seed, the
 Invoice Inspector, a flagged invoice's agent findings, and a live `POST /audit`
 verdict — no narration, just the product in action.
+▶️ Watch: [demo/procureai-dashboard-demo.mp4](https://github.com/Lesly-umgc/procureai-ai-engineering/blob/main/demo/procureai-dashboard-demo.mp4)
 
-Architecture diagrams: `docs/architecture-tech-stack.png` (technology layers)
-and `docs/architecture-project-flow.png` (invoice input → verdict flow).
+Architecture diagrams:
+
+![Technology stack](docs/architecture-tech-stack.png)
+![Invoice flow through the system](docs/architecture-project-flow.png)
 
 To reproduce the same run against the Compose stack:
 
