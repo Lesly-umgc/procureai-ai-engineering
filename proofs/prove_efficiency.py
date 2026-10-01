@@ -26,6 +26,7 @@ import pandas as pd
 from scripts.synthesize import make_vendors, make_purchase_orders, make_invoices
 from core.anomaly_engine import AnomalyScoringEngine, engineer_features, FEATURE_COLUMNS
 
+# --- assumptions (documented in README; tune via CLI) -------------------------
 MANUAL_MIN_PER_INVOICE = 4.0   # analyst triage time per invoice (assumption)
 LLM_SEC_PER_FLAGGED = 8.0      # deep-audit LLM call per flagged invoice (assumption)
 TOTAL = 250_000
@@ -47,6 +48,7 @@ def main() -> None:
     engine = AnomalyScoringEngine()
     engine.train_dataframe(df.assign(is_fraud=(df["status"] == "FLAGGED").astype(int)))
 
+    # --- measured automated triage ------------------------------------------
     t0 = time.perf_counter()
     feat = engineer_features(df)
     probs = engine.model.predict_proba(feat[FEATURE_COLUMNS])[:, 1]

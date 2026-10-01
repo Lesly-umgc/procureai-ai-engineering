@@ -22,6 +22,9 @@ import pandas as pd
 from core.anomaly_engine import AnomalyScoringEngine, FEATURE_COLUMNS
 from core.agent.retrieval import find_similar_invoices, retrieve_policy
 
+# ---------------------------------------------------------------------------
+# Shared engine (loaded once)
+# ---------------------------------------------------------------------------
 _engine: AnomalyScoringEngine | None = None
 
 
@@ -32,6 +35,9 @@ def _get_engine() -> AnomalyScoringEngine:
     return _engine
 
 
+# ---------------------------------------------------------------------------
+# Tool: XGBoost anomaly score
+# ---------------------------------------------------------------------------
 def score_invoice_xgb(invoice: Dict[str, Any]) -> Dict[str, Any]:
     """Score one invoice with the trained XGBoost model.
 
@@ -55,6 +61,9 @@ def score_invoice_xgb(invoice: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Tool: arithmetic verification (deterministic)
+# ---------------------------------------------------------------------------
 def verify_arithmetic(invoice: Dict[str, Any], tax_rate: float = 0.08) -> Dict[str, Any]:
     """Check subtotal + tax == total and line items sum to subtotal.
 
@@ -104,6 +113,9 @@ def verify_arithmetic(invoice: Dict[str, Any], tax_rate: float = 0.08) -> Dict[s
     }
 
 
+# ---------------------------------------------------------------------------
+# Tool: duplicate detection (deterministic)
+# ---------------------------------------------------------------------------
 def find_duplicates(invoice: Dict[str, Any], history: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Find near-duplicate invoices in history: same vendor + same PO + amount
     within 2% + date within 45 days. Returns matches with evidence."""
@@ -134,6 +146,9 @@ def find_duplicates(invoice: Dict[str, Any], history: List[Dict[str, Any]]) -> D
     return {"duplicate_found": len(matches) > 0, "matches": matches}
 
 
+# ---------------------------------------------------------------------------
+# Tool: PO matching (deterministic)
+# ---------------------------------------------------------------------------
 def check_po(invoice: Dict[str, Any], po: Dict[str, Any]) -> Dict[str, Any]:
     """Compare billed total against the PO amount limit and each line's unit
     price against its PO contracted rate.
@@ -154,7 +169,7 @@ def check_po(invoice: Dict[str, Any], po: Dict[str, Any]) -> Dict[str, Any]:
         if unit is None or contracted is None:
             continue
         unit, contracted = float(unit), float(contracted)
-        if contracted > 0 and unit > contracted * 1.10:
+        if contracted > 0 and unit > contracted * 1.10:  # >10% above contract
             drift_pct = round((unit - contracted) / contracted * 100, 1)
             drift_lines.append(
                 f"{line.get('description', 'line item')}: unit price "
@@ -177,6 +192,9 @@ def check_po(invoice: Dict[str, Any], po: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Tool: vendor risk (deterministic)
+# ---------------------------------------------------------------------------
 def assess_vendor(vendor: Dict[str, Any], history: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Summarize vendor risk: master-file standing, tax-ID verification,
     rating, invoice volume, past flags.
@@ -213,6 +231,9 @@ def assess_vendor(vendor: Dict[str, Any], history: List[Dict[str, Any]]) -> Dict
     }
 
 
+# ---------------------------------------------------------------------------
+# Tool registry (name -> function + description for the agent prompt)
+# ---------------------------------------------------------------------------
 TOOLS = {
     "score_invoice_xgb": (
         score_invoice_xgb,

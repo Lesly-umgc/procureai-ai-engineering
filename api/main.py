@@ -12,6 +12,7 @@ from core.agent_auditor import AgentAuditor
 app = FastAPI(title="ProcureAI Enterprise API", version="1.0.0")
 
 anomaly_engine = AnomalyScoringEngine()
+# Try training model on startup if data exists
 try:
     anomaly_engine.train_model()
 except Exception as e:
@@ -39,6 +40,7 @@ def get_metrics(db: Session = Depends(get_db)):
     flagged_invoices = db.query(Invoice).filter(Invoice.status == "FLAGGED").count()
     total_audits = db.query(AuditLog).count()
     
+    # Calculate sum of flagged invoice amounts
     flagged_amount_res = db.query(Invoice).filter(Invoice.status == "FLAGGED").all()
     flagged_fraud_amount = sum([inv.total_amount for inv in flagged_amount_res])
 
@@ -96,6 +98,20 @@ def run_audit(req: AuditRequest, db: Session = Depends(get_db)):
     }
 
 
+# ---------------------------------------------------------------------------
+# POST /audit — the real ReAct AuditAgent (core/agent/agentic_auditor.py)
+#
+# Takes a full invoice payload (invoice + PO + vendor + optional history) and
+# runs the agent's ReAct loop over its deterministic tools, including the
+# pgvector-backed find_similar_invoices / retrieve_policy tools when the DB
+# is reachable.
+#
+# Latency note: the ReAct loop makes several sequential LLM calls, so a live
+# audit can take 30-120s on the free-tier Gemini model. `run_agent_audit` is
+# deliberately separated from the route handler so this exact function can
+# later move into a background job / task queue without changing the API
+# contract.
+# ---------------------------------------------------------------------------
 from core.agent.agentic_auditor import AuditAgent  # noqa: E402
 from core.agent.llm_throttle import redact  # noqa: E402
 
@@ -264,6 +280,7 @@ def run_agent_audit(
         "tool_errors": tool_errors,
         "policy_citations": policy_citations,
         "tool_results": tool_results,
+        # Trace: per-call latencies, call counts, token usage, cost (free tier).
         "trace": out["trace"],
         "note": (
             "Audit performed by the ProcureAI ReAct agent (deterministic tools + "

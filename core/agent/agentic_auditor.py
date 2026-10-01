@@ -1,26 +1,56 @@
-"""ProcureAI audit agent: a real ReAct loop over deterministic tools.
+"""ProcureAI audit agent: a LangGraph ReAct agent over deterministic tools.
 
-Unlike the legacy single-prompt auditor, this agent:
-  1. reasons about what evidence it needs,
-  2. calls a deterministic tool (XGBoost score, arithmetic check, duplicate
-     search, PO match, vendor assessment),
-  3. observes the result and decides the next step,
-  4. issues a final verdict with cited evidence.
+Graph structure (nodes and edges — the short interview answer):
 
+    ┌──────────┐  conditional   ┌──────┐
+    │  reason  │ ──────────────▶ │ act  │
+    └──────────┘   ▲             └──────┘
+         │        │                   │
+         │        └───────────────────┘
+         ▼
+    ┌──────────┐      ┌─────┐
+    │ finalize │ ────▶ │ END │
+    └──────────┘      └─────┘
+
+* ``reason`` — the LLM looks at the system prompt + transcript and returns
+  exactly one JSON object: either a tool call
+  (``{"thought", "action", "action_input"}``) or the final verdict
+  (``{"thought", "verdict", "confidence", "findings", "amount_at_risk"}``).
+* ``act`` — executes ONE deterministic tool (XGBoost score, arithmetic
+  check, duplicate search, PO match, vendor assessment, or — optionally —
+  the pgvector retrieval tools) and appends the observation to the
+  transcript. The tools are pure functions; the LLM never computes.
+* ``finalize`` — normalizes the verdict dict (unknown verdicts become
+  FLAG) and attaches the instrumentation summary.
+* The conditional edge after ``reason`` routes on the LLM's JSON output:
+  verdict present → ``finalize``; step budget exhausted → ``finalize``
+  with a forced FLAG ("did not converge"); tool action → ``act``;
+  unparseable or empty output → back to ``reason`` with a retry note in
+  the transcript.
+
+State carries the audit context (invoice/po/vendor/history), the
+append-only transcript, the step-by-step trace (thought/action/
+observation), the timed call log, and the step counter. The graph is
+compiled once per ``AuditAgent``; ``audit()`` just invokes it.
+
+Unlike the legacy single-prompt auditor, this agent reasons about what
+evidence it needs, calls tools, observes results, and only then verdicts.
 The LLM reasons; the tools compute. Free-tier Gemini model only
 (GEMINI_MODEL env, default gemini-3.1-flash-lite).
 """
 from __future__ import annotations
 
 import json
+import operator
 import os
 import re
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional, TypedDict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from langgraph.graph import END, StateGraph
 
 from core.agent.tools import TOOLS, tool_descriptions
 from core.agent.llm_throttle import GeminiClient, redact
@@ -67,7 +97,9 @@ Verdict guidance — apply in this order, first match wins:
   * verify_arithmetic reports ok=false — ANY mismatch (line totals vs subtotal,
     tax vs rate, subtotal+tax vs total). The tool is decisive; never overrule it.
   * assess_vendor reports the vendor is NOT in the approved vendor master or the
-    tax ID is UNVERIFIED — an unregistered vendor is certain fraud.
+    tax ID is UNVERIFIED — an unregistered vendor is certain fraud. This is
+    decisive: ghost signals are REJECT, never a mere FLAG. Do not downgrade an
+    unregistered vendor to FLAG for any reason.
   * check_po reports billed over the PO limit with no justification.
   * Near-threshold totals are NEVER REJECT by themselves — that is a FLAG.
 - FLAG (suspicious, needs human review):
@@ -81,17 +113,15 @@ Verdict guidance — apply in this order, first match wins:
   * check_po reports price_drift_lines non-empty (unit price >10% above the PO
     contracted rate) — cite the line item and the percentage.
   * XGBoost anomaly score is high (>=0.7) but no tool above corroborates it.
-  * Vendor is on file but has thin history plus a high risk rating.
-- FLAG (suspicious, needs human review):
-  * check_po reports near_10k_threshold=true (just below the $10,000 approval
-    threshold) or price_drift_lines non-empty (unit price >10% above the PO
-    contracted rate) — cite the amounts and the threshold.
-  * XGBoost anomaly score is high (>=0.7) but no tool above corroborates it.
-  * Vendor is on file but has thin history plus a high risk rating.
+  * Vendor is on file but has thin history plus a high risk rating (>=0.5).
 - APPROVE (hard rule, overrides everything below it): verify_arithmetic ok=true
   AND vendor is on file with a verified tax ID AND no duplicates found AND total
   is within the PO limit → APPROVE. This overrides the XGBoost score and any
-  vague suspicion. Do NOT flag a clean invoice on the ML score alone.
+  vague suspicion. Do NOT flag a clean invoice on the ML score alone. Thin vendor
+  history with a low or moderate risk rating (<0.5) is informational, not
+  suspicious — when the four conditions above hold, APPROVE even if the vendor's
+  history is thin. Thin history only supports FLAG when the risk rating is high
+  (>=0.5) or another tool corroborates the suspicion.
 
 Findings vocabulary — state concrete, checkable facts using these exact terms
 so the audit brief is unambiguous:
@@ -115,8 +145,25 @@ def _extract_json(text: str) -> Dict[str, Any]:
     return json.loads(match.group(0))
 
 
+class _AuditState(TypedDict):
+    """LangGraph state for one invoice audit."""
+
+    context: Dict[str, Any]            # invoice / po / vendor / history
+    system: str                       # rendered system prompt
+    transcript: Annotated[List[str], operator.add]   # append-only LLM context
+    trace: List[Dict[str, Any]]       # step-by-step thought/action/observation
+    call_log: Annotated[List[Dict[str, Any]], operator.add]  # timed instrumentation
+    step: int                         # reason iterations consumed
+    verdict_msg: Optional[Dict[str, Any]]  # set when the LLM verdicts
+    pending_action: Optional[str]     # tool chosen by the last reason step
+    pending_input: Dict[str, Any]     # its arguments
+    pending_step: int                 # reason step that requested the tool
+    audit_t0: float                   # wall-clock start for instrumentation
+    result: Optional[Dict[str, Any]]  # filled by finalize
+
+
 class AuditAgent:
-    """ReAct audit agent.
+    """LangGraph ReAct audit agent.
 
     Live mode needs GEMINI_API_KEY (free-tier model only, enforced by
     llm_throttle). Pass ``llm_fn`` to inject a deterministic backend instead
@@ -134,11 +181,179 @@ class AuditAgent:
         if llm_fn is not None:
             self._llm = llm_fn
             self.model = "mock-llm (dry-run, not a real evaluation)"
-            return
-        self._client = GeminiClient(api_key=api_key, model=GEMINI_MODEL)
-        self._llm = self._client.generate
-        self.model = self._client.model
+        else:
+            self._client = GeminiClient(api_key=api_key, model=GEMINI_MODEL)
+            self._llm = self._client.generate
+            self.model = self._client.model
+        self._graph = self._build_graph()
 
+    # ------------------------------------------------------------------
+    # LangGraph construction
+    # ------------------------------------------------------------------
+    def _build_graph(self):
+        """Compile the reason -> act -> reason loop with a finalize exit."""
+        graph = StateGraph(_AuditState)
+        graph.add_node("reason", self._node_reason)
+        graph.add_node("act", self._node_act)
+        graph.add_node("finalize", self._node_finalize)
+        graph.set_entry_point("reason")
+        graph.add_conditional_edges(
+            "reason",
+            self._route_after_reason,
+            {"act": "act", "reason": "reason", "finalize": "finalize"},
+        )
+        graph.add_edge("act", "reason")
+        graph.add_edge("finalize", END)
+        return graph.compile()
+
+    def _route_after_reason(self, state: _AuditState) -> str:
+        """Route on the LLM's JSON output: verdict, tool call, or retry."""
+        msg = state.get("verdict_msg")
+        if msg and "verdict" in msg:
+            return "finalize"
+        if state["step"] >= self.max_steps:
+            return "finalize"  # step budget exhausted -> forced FLAG
+        if state.get("pending_action"):
+            return "act"
+        return "reason"  # unparseable / empty output: retry with a note
+
+    # ------------------------------------------------------------------
+    # Graph nodes
+    # ------------------------------------------------------------------
+    def _node_reason(self, state: _AuditState) -> Dict[str, Any]:
+        """One LLM reasoning step: emit a tool call or the final verdict."""
+        step = state["step"]
+        prompt = state["system"] + "\n\n" + "\n\n".join(state["transcript"])
+        if step == self.max_steps - 1:
+            prompt += ("\n\nThis is your LAST step. You MUST return the final "
+                       "verdict JSON now (no action).")
+        t_llm = time.perf_counter()
+        raw = self._redacted_llm(prompt)
+        llm_latency = time.perf_counter() - t_llm
+        llm_entry = {
+            "kind": "llm",
+            "step": step,
+            "latency_s": round(llm_latency, 4),
+            "parsed": True,
+            "tokens": self._consume_usage(),
+        }
+        try:
+            msg = _extract_json(raw)
+        except ValueError:
+            llm_entry["parsed"] = False
+            return {
+                "transcript": [f"Agent output (unparseable, retry): {raw[:300]}"],
+                "call_log": [llm_entry],
+                "step": step + 1,
+            }
+        trace_entry = {
+            "step": step,
+            "thought": msg.get("thought"),
+            "action": msg.get("action"),
+        }
+        update: Dict[str, Any] = {
+            "call_log": [llm_entry],
+            "trace": state["trace"] + [trace_entry],
+            "step": step + 1,
+        }
+        if "verdict" in msg:
+            update["verdict_msg"] = msg
+            return update
+        action = msg.get("action")
+        if not action:
+            update["transcript"] = ["No action or verdict given; provide one."]
+            return update
+        update["pending_action"] = action
+        update["pending_input"] = msg.get("action_input", {}) or {}
+        update["pending_step"] = step
+        return update
+
+    def _node_act(self, state: _AuditState) -> Dict[str, Any]:
+        """Execute the chosen deterministic tool; record the observation."""
+        action = state["pending_action"]
+        t0 = time.perf_counter()
+        obs = self._dispatch(
+            action, state.get("pending_input") or {}, state["context"])
+        tool_entry = {
+            "kind": "tool",
+            "step": state["pending_step"],
+            "name": action,
+            "latency_s": round(time.perf_counter() - t0, 4),
+            "error": bool(isinstance(obs, dict) and obs.get("error")),
+        }
+        trace = [dict(e) for e in state["trace"]]
+        trace[-1]["observation"] = obs
+        return {
+            "trace": trace,
+            "call_log": [tool_entry],
+            "transcript": [
+                f"Thought: {trace[-1].get('thought')}\nAction: {action}\n"
+                f"Observation: {json.dumps(obs, default=str)[:1500]}"
+            ],
+            "pending_action": None,
+            "pending_input": {},
+        }
+
+    def _node_finalize(self, state: _AuditState) -> Dict[str, Any]:
+        """Normalize the verdict and attach the instrumentation summary."""
+        # Back-compat: the eval harness and tests read these attributes.
+        self.call_log = list(state["call_log"])
+        self._audit_t0 = state["audit_t0"]
+        self.trace = [dict(e) for e in state["trace"]]
+        msg = state.get("verdict_msg")
+        if msg and "verdict" in msg:
+            result = self._finalize(msg)
+        else:
+            invoice = state["context"]["invoice"]
+            result = self._finalize({
+                "verdict": "FLAG",
+                "confidence": 0.5,
+                "findings": ["agent did not converge within step budget; "
+                             "needs human review"],
+                "amount_at_risk": float(invoice.get("total_amount", 0)),
+            })
+        return {"result": result}
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def audit(self, invoice: Dict[str, Any], po: Dict[str, Any] | None = None,
+              vendor: Dict[str, Any] | None = None,
+              history: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+        """Run the LangGraph ReAct loop and return the final verdict dict."""
+        context = {"invoice": invoice, "po": po or {},
+                   "vendor": vendor or {}, "history": history or []}
+        self.trace = []
+        self.call_log = []
+        self._audit_t0 = time.perf_counter()
+        initial: _AuditState = {
+            "context": context,
+            "system": SYSTEM_PROMPT.format(max_steps=self.max_steps,
+                                           tools=tool_descriptions()),
+            "transcript": [
+                f"Invoice under audit:\n{json.dumps(invoice, indent=2, default=str)}"
+            ],
+            "trace": [],
+            "call_log": [],
+            "step": 0,
+            "verdict_msg": None,
+            "pending_action": None,
+            "pending_input": {},
+            "pending_step": 0,
+            "audit_t0": self._audit_t0,
+            "result": None,
+        }
+        final = self._graph.invoke(
+            initial,
+            config={"recursion_limit": self.max_steps * 4 + 10},
+        )
+        self.trace = [dict(e) for e in final["trace"]]
+        self.call_log = list(final["call_log"])
+        return final["result"]
+
+    # ------------------------------------------------------------------
+    # Helpers (unchanged from the hand-rolled loop)
+    # ------------------------------------------------------------------
     def _consume_usage(self) -> Optional[Dict[str, Optional[int]]]:
         """Pop the last LLM call's token usage, if the backend captured any.
 
@@ -214,20 +429,6 @@ class AuditAgent:
         except Exception as e:  # tools must never crash the loop
             return {"error": f"{action} failed: {e}"}
 
-    def _timed_dispatch(self, action: str, action_input: Dict[str, Any],
-                        context: Dict[str, Any], step: int) -> Any:
-        """Run a tool and record its latency in the per-call log."""
-        t0 = time.perf_counter()
-        obs = self._dispatch(action, action_input, context)
-        self.call_log.append({
-            "kind": "tool",
-            "step": step,
-            "name": action,
-            "latency_s": round(time.perf_counter() - t0, 4),
-            "error": bool(isinstance(obs, dict) and obs.get("error")),
-        })
-        return obs
-
     def _redacted_llm(self, prompt: str) -> str:
         """Call the LLM backend; any failure surfaces with secrets redacted."""
         try:
@@ -237,68 +438,6 @@ class AuditAgent:
             raise RuntimeError(
                 redact(e, key.api_key if key else None)
             ) from e
-
-    def audit(self, invoice: Dict[str, Any], po: Dict[str, Any] | None = None,
-              vendor: Dict[str, Any] | None = None,
-              history: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
-        """Run the ReAct loop and return the final verdict dict."""
-        context = {"invoice": invoice, "po": po or {},
-                   "vendor": vendor or {}, "history": history or []}
-        self.trace = []
-        self.call_log = []
-        self._audit_t0 = time.perf_counter()
-        system = SYSTEM_PROMPT.format(max_steps=self.max_steps,
-                                      tools=tool_descriptions())
-        transcript = [
-            f"Invoice under audit:\n{json.dumps(invoice, indent=2, default=str)}"
-        ]
-
-        for step in range(self.max_steps):
-            prompt = system + "\n\n" + "\n\n".join(transcript)
-            if step == self.max_steps - 1:
-                prompt += ("\n\nThis is your LAST step. You MUST return the final "
-                           "verdict JSON now (no action).")
-            t_llm = time.perf_counter()
-            raw = self._redacted_llm(prompt)
-            llm_latency = time.perf_counter() - t_llm
-            llm_entry = {
-                "kind": "llm",
-                "step": step,
-                "latency_s": round(llm_latency, 4),
-                "parsed": True,
-                "tokens": self._consume_usage(),
-            }
-            try:
-                msg = _extract_json(raw)
-            except ValueError:
-                llm_entry["parsed"] = False
-                self.call_log.append(llm_entry)
-                transcript.append(f"Agent output (unparseable, retry): {raw[:300]}")
-                continue
-            self.call_log.append(llm_entry)
-
-            self.trace.append({"step": step, "thought": msg.get("thought"),
-                               "action": msg.get("action")})
-            if "verdict" in msg:
-                return self._finalize(msg)
-            action = msg.get("action")
-            if not action:
-                transcript.append("No action or verdict given; provide one.")
-                continue
-            obs = self._timed_dispatch(action, msg.get("action_input", {}), context, step)
-            self.trace[-1]["observation"] = obs
-            transcript.append(
-                f"Thought: {msg.get('thought')}\nAction: {action}\n"
-                f"Observation: {json.dumps(obs, default=str)[:1500]}"
-            )
-
-        # Forced verdict if the loop never concluded
-        return self._finalize({
-            "verdict": "FLAG",
-            "confidence": 0.5,
-            "findings": ["agent did not converge within step budget; needs human review"],
-            "amount_at_risk": float(invoice.get("total_amount", 0)),
-        })
 
     def _finalize(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         verdict = str(msg.get("verdict", "FLAG")).upper()

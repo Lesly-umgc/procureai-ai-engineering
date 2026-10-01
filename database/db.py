@@ -120,6 +120,7 @@ def init_db():
         conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector;")
         conn.commit()
     Base.metadata.create_all(bind=engine)
+    # Create IVFFlat vector indexes for similarity search
     with engine.connect() as conn:
         # Note: IVFFlat requires rows before indexing or can be created with lists=100
         # Verified live: IVFFlat with lists=100 on the 8-row policies table

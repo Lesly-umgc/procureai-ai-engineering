@@ -1,9 +1,9 @@
 {
   "meta": {
-    "generated_utc": "2026-09-30 04:01 UTC",
+    "generated_utc": "2026-10-01 02:18 UTC",
     "git_commit": "4afb13f",
     "model": "gemini-3.5-flash-lite",
-    "judge": "mock",
+    "judge": "gemini",
     "llm_backend": "live",
     "free_tier_enforced": true,
     "limits": {
@@ -14,47 +14,47 @@
   },
   "summary": {
     "n": 30,
-    "verdict_accuracy": 0.9,
-    "accuracy_ci_low": 0.7437855868473339,
-    "accuracy_ci_high": 0.9654007400402839,
-    "mean_findings_recall": 0.8055666666666668,
-    "errors": 0,
+    "verdict_accuracy": 0.9333333333333333,
+    "accuracy_ci_low": 0.7867618227892791,
+    "accuracy_ci_high": 0.9815233646723066,
+    "mean_findings_recall": 0.8666666666666667,
+    "errors": 1,
     "by_type": {
       "NORMAL": {
         "n": 5,
-        "hits": 4,
-        "accuracy": 0.8,
-        "mean_recall": 0.9334
+        "hits": 3,
+        "accuracy": 0.6,
+        "mean_recall": 0.8
       },
       "DUPLICATE": {
         "n": 5,
         "hits": 5,
         "accuracy": 1.0,
-        "mean_recall": 0.5
+        "mean_recall": 0.6
       },
       "SPLIT_PO": {
         "n": 5,
         "hits": 5,
         "accuracy": 1.0,
-        "mean_recall": 0.8
+        "mean_recall": 1.0
       },
       "PRICE_DRIFT": {
         "n": 5,
         "hits": 5,
         "accuracy": 1.0,
-        "mean_recall": 1.0
+        "mean_recall": 0.9
       },
       "GHOST": {
         "n": 5,
-        "hits": 4,
-        "accuracy": 0.8,
-        "mean_recall": 0.9
+        "hits": 5,
+        "accuracy": 1.0,
+        "mean_recall": 1.0
       },
       "CALC_DISCREPANCY": {
         "n": 5,
-        "hits": 4,
-        "accuracy": 0.8,
-        "mean_recall": 0.7
+        "hits": 5,
+        "accuracy": 1.0,
+        "mean_recall": 0.9
       }
     }
   },
@@ -68,7 +68,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (APPROVE). 3/3 findings recalled"
+      "notes": "The agent correctly matched the verdict and identified all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3002",
@@ -77,9 +77,9 @@
       "verdict": "APPROVE",
       "verdict_match": true,
       "findings_recall": 1.0,
-      "steps": 6,
+      "steps": 7,
       "error": null,
-      "notes": "verdict match (APPROVE). 3/3 findings recalled"
+      "notes": "The agent correctly matched the APPROVE verdict and successfully mentioned all three expected findings."
     },
     {
       "invoice_number": "INV-3003",
@@ -87,21 +87,21 @@
       "expected_verdict": "APPROVE",
       "verdict": "FLAG",
       "verdict_match": false,
-      "findings_recall": 0.667,
+      "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict mismatch: expected APPROVE, got FLAG. 2/3 findings recalled. missing: total within PO amount limit"
+      "notes": "The agent correctly identified all expected findings, but the risk verdict did not match the expected APPROVE."
     },
     {
       "invoice_number": "INV-3004",
       "fraud_type": "NORMAL",
       "expected_verdict": "APPROVE",
-      "verdict": "APPROVE",
-      "verdict_match": true,
-      "findings_recall": 1.0,
-      "steps": 6,
-      "error": null,
-      "notes": "verdict match (APPROVE). 3/3 findings recalled"
+      "verdict": null,
+      "verdict_match": false,
+      "findings_recall": 0.0,
+      "steps": 0,
+      "error": "RuntimeError: Gemini call failed after 4 attempts: 'parts'",
+      "notes": "agent error: RuntimeError: Gemini call failed after 4 attempts: 'parts'"
     },
     {
       "invoice_number": "INV-3005",
@@ -112,7 +112,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (APPROVE). 3/3 findings recalled"
+      "notes": "The agent correctly matched the APPROVE verdict and successfully mentioned all expected findings."
     },
     {
       "invoice_number": "INV-3006",
@@ -121,9 +121,9 @@
       "verdict": "FLAG",
       "verdict_match": true,
       "findings_recall": 0.5,
-      "steps": 7,
+      "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+      "notes": "The agent matched the verdict and identified the duplicate invoice finding, but missed the specific finding regarding the same vendor, amount, and date."
     },
     {
       "invoice_number": "INV-3007",
@@ -132,9 +132,9 @@
       "verdict": "FLAG",
       "verdict_match": true,
       "findings_recall": 0.5,
-      "steps": 6,
+      "steps": 7,
       "error": null,
-      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+      "notes": "The agent matched the verdict and identified the duplicate invoice finding, but missed the specific finding regarding same vendor amount and date."
     },
     {
       "invoice_number": "INV-3008",
@@ -145,7 +145,7 @@
       "findings_recall": 0.5,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+      "notes": "The agent matched the verdict and captured the duplicate invoice finding, but missed the specific finding regarding the same vendor amount and date."
     },
     {
       "invoice_number": "INV-3009",
@@ -156,7 +156,7 @@
       "findings_recall": 0.5,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+      "notes": "The agent matched the verdict and identified the duplicate invoice finding, but missed the specific finding regarding the same vendor, amount, and date."
     },
     {
       "invoice_number": "INV-3010",
@@ -164,10 +164,10 @@
       "expected_verdict": "FLAG",
       "verdict": "FLAG",
       "verdict_match": true,
-      "findings_recall": 0.5,
-      "steps": 6,
+      "findings_recall": 1.0,
+      "steps": 7,
       "error": null,
-      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: same vendor amount and date as prior invoice"
+      "notes": "The agent correctly matched the FLAG verdict and successfully included all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3011",
@@ -178,7 +178,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent correctly matched the FLAG verdict and successfully mentioned all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3012",
@@ -189,7 +189,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent correctly matched the verdict and captured all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3013",
@@ -198,9 +198,9 @@
       "verdict": "FLAG",
       "verdict_match": true,
       "findings_recall": 1.0,
-      "steps": 5,
+      "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent correctly matched the verdict and identified all expected findings."
     },
     {
       "invoice_number": "INV-3014",
@@ -208,10 +208,10 @@
       "expected_verdict": "FLAG",
       "verdict": "FLAG",
       "verdict_match": true,
-      "findings_recall": 0.5,
-      "steps": 6,
+      "findings_recall": 1.0,
+      "steps": 5,
       "error": null,
-      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: possible split billing with INV-3013"
+      "notes": "The agent correctly matched the FLAG verdict and successfully captured all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3015",
@@ -219,10 +219,10 @@
       "expected_verdict": "FLAG",
       "verdict": "FLAG",
       "verdict_match": true,
-      "findings_recall": 0.5,
-      "steps": 6,
+      "findings_recall": 1.0,
+      "steps": 7,
       "error": null,
-      "notes": "verdict match (FLAG). 1/2 findings recalled. missing: threshold proximity suggests approval-limit evasion"
+      "notes": "The agent correctly matched the verdict and identified both expected findings regarding the threshold proximity."
     },
     {
       "invoice_number": "INV-3016",
@@ -231,9 +231,9 @@
       "verdict": "FLAG",
       "verdict_match": true,
       "findings_recall": 1.0,
-      "steps": 6,
+      "steps": 7,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent correctly matched the verdict and identified all expected findings."
     },
     {
       "invoice_number": "INV-3017",
@@ -244,7 +244,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent correctly matched the FLAG verdict and successfully identified all expected findings regarding unit price inflation."
     },
     {
       "invoice_number": "INV-3018",
@@ -255,7 +255,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent correctly matched the verdict and identified all expected findings."
     },
     {
       "invoice_number": "INV-3019",
@@ -266,7 +266,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent correctly matched the verdict and identified both expected findings in its brief."
     },
     {
       "invoice_number": "INV-3020",
@@ -274,10 +274,10 @@
       "expected_verdict": "FLAG",
       "verdict": "FLAG",
       "verdict_match": true,
-      "findings_recall": 1.0,
+      "findings_recall": 0.5,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (FLAG). 2/2 findings recalled"
+      "notes": "The agent matched the verdict and identified the unit price finding, but missed the price inflation on contract review hours finding."
     },
     {
       "invoice_number": "INV-3021",
@@ -288,7 +288,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (REJECT). 2/2 findings recalled"
+      "notes": "The agent correctly matched the rejection verdict and identified all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3022",
@@ -297,9 +297,9 @@
       "verdict": "REJECT",
       "verdict_match": true,
       "findings_recall": 1.0,
-      "steps": 5,
+      "steps": 6,
       "error": null,
-      "notes": "verdict match (REJECT). 2/2 findings recalled"
+      "notes": "The agent correctly matched the rejection verdict and identified all expected findings."
     },
     {
       "invoice_number": "INV-3023",
@@ -310,7 +310,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (REJECT). 2/2 findings recalled"
+      "notes": "The agent correctly matched the verdict and identified all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3024",
@@ -319,31 +319,31 @@
       "verdict": "REJECT",
       "verdict_match": true,
       "findings_recall": 1.0,
-      "steps": 5,
+      "steps": 6,
       "error": null,
-      "notes": "verdict match (REJECT). 2/2 findings recalled"
+      "notes": "The agent correctly matched the rejection verdict and successfully mentioned all expected findings."
     },
     {
       "invoice_number": "INV-3025",
       "fraud_type": "GHOST",
       "expected_verdict": "REJECT",
-      "verdict": "APPROVE",
-      "verdict_match": false,
-      "findings_recall": 0.5,
-      "steps": 5,
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
       "error": null,
-      "notes": "verdict mismatch: expected REJECT, got APPROVE. 1/2 findings recalled. missing: unregistered vendor with unverified tax ID"
+      "notes": "The agent matched the REJECT verdict and correctly identified all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3026",
       "fraud_type": "CALC_DISCREPANCY",
       "expected_verdict": "REJECT",
-      "verdict": "APPROVE",
-      "verdict_match": false,
-      "findings_recall": 0.5,
-      "steps": 5,
+      "verdict": "REJECT",
+      "verdict_match": true,
+      "findings_recall": 1.0,
+      "steps": 6,
       "error": null,
-      "notes": "verdict mismatch: expected REJECT, got APPROVE. 1/2 findings recalled. missing: calculation discrepancy of $250.00"
+      "notes": "The agent correctly matched the rejection verdict and successfully included both expected findings in its brief."
     },
     {
       "invoice_number": "INV-3027",
@@ -352,9 +352,9 @@
       "verdict": "REJECT",
       "verdict_match": true,
       "findings_recall": 0.5,
-      "steps": 6,
+      "steps": 7,
       "error": null,
-      "notes": "verdict match (REJECT). 1/2 findings recalled. missing: stated tax $749.60 inconsistent with 8% of subtotal ($649.60)"
+      "notes": "The agent matched the verdict and identified the tax discrepancy, but missed the specific finding regarding the total being overstated by $100.00."
     },
     {
       "invoice_number": "INV-3028",
@@ -363,9 +363,9 @@
       "verdict": "REJECT",
       "verdict_match": true,
       "findings_recall": 1.0,
-      "steps": 7,
+      "steps": 6,
       "error": null,
-      "notes": "verdict match (REJECT). 2/2 findings recalled"
+      "notes": "The agent correctly matched the verdict and identified all expected calculation discrepancy findings."
     },
     {
       "invoice_number": "INV-3029",
@@ -376,7 +376,7 @@
       "findings_recall": 1.0,
       "steps": 6,
       "error": null,
-      "notes": "verdict match (REJECT). 2/2 findings recalled"
+      "notes": "The agent matched the correct verdict and successfully recalled all expected findings in its brief."
     },
     {
       "invoice_number": "INV-3030",
@@ -384,10 +384,10 @@
       "expected_verdict": "REJECT",
       "verdict": "REJECT",
       "verdict_match": true,
-      "findings_recall": 0.5,
-      "steps": 6,
+      "findings_recall": 1.0,
+      "steps": 5,
       "error": null,
-      "notes": "verdict match (REJECT). 1/2 findings recalled. missing: subtotal plus tax equals $729.54 but stated total is $779.54"
+      "notes": "The agent correctly matched the rejection verdict and captured all expected discrepancy findings in its brief."
     }
   ]
 }

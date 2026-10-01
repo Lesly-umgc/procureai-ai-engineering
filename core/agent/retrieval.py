@@ -90,6 +90,9 @@ def _unavailable(reason: str) -> Dict[str, Any]:
     return {"available": False, "error": reason, "results": []}
 
 
+# ---------------------------------------------------------------------------
+# Tool: similar historical invoices (pgvector)
+# ---------------------------------------------------------------------------
 def find_similar_invoices(invoice: Dict[str, Any], k: int = 5) -> Dict[str, Any]:
     """Find the k most similar historical invoices via pgvector cosine search.
 
@@ -146,6 +149,9 @@ def find_similar_invoices(invoice: Dict[str, Any], k: int = 5) -> Dict[str, Any]
     }
 
 
+# ---------------------------------------------------------------------------
+# Tool: policy retrieval (pgvector)
+# ---------------------------------------------------------------------------
 def retrieve_policy(invoice: Dict[str, Any], k: int = 3) -> Dict[str, Any]:
     """Retrieve the k most relevant policy snippets for this invoice via
     pgvector cosine search over the policies table (synthetic seed corpus).

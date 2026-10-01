@@ -37,6 +37,7 @@ def run_synthesis():
     vendors = make_vendors()
     pos = make_purchase_orders(vendors)
 
+    # --- vendors ---------------------------------------------------------
     cur.execute("SELECT COUNT(*) FROM vendors;")
     if cur.fetchone()[0] == 0:
         print("Seeding vendors...")
@@ -56,6 +57,7 @@ def run_synthesis():
     pos = pos.copy()
     pos["vendor_id"] = pos["vendor_id"].map(lambda i: vendor_id_by_name[VENDOR_NAMES[i - 1]])
 
+    # --- purchase orders --------------------------------------------------
     cur.execute("SELECT COUNT(*) FROM purchase_orders;")
     if cur.fetchone()[0] == 0:
         print("Seeding purchase orders...")
@@ -85,6 +87,7 @@ def run_synthesis():
     po_id_by_number = {num: pid for pid, num in cur.fetchall()}
     po_number_by_seq = {r.po_id: r.po_number for r in pos.itertuples()}
 
+    # --- invoices (streamed in batches) -----------------------------------
     print(f"Starting streaming synthesis of {TOTAL_INVOICES} invoices "
           f"in batches of {BATCH_SIZE}...")
     inserted = 0

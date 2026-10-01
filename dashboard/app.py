@@ -4,9 +4,11 @@ import pandas as pd
 import json
 import os
 
+# ---------------------------------------------------------------------------
 # Helpers for the agentic audit view (payload mirrors
 # evals/run_agent_evals.py::golden_to_context: invoice document + PO +
 # vendor master, never the fraud label or expected verdict).
+# ---------------------------------------------------------------------------
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GOLDEN_PATH = os.path.join(REPO_ROOT, "evals", "golden_invoices.json")
 
@@ -69,6 +71,7 @@ API_BASE_URL = os.getenv("PROCUREAI_API_URL", "http://localhost:8000")
 st.title("🛡️ ProcureAI: Enterprise Document AI & Compliance Engine")
 st.markdown("Autonomous AI auditor for invoice fraud detection, purchase order compliance, and vendor risk analysis.")
 
+# Fetch metrics
 try:
     metrics_res = requests.get(f"{API_BASE_URL}/metrics", timeout=5).json()
 except Exception:
@@ -80,6 +83,7 @@ except Exception:
         "audit_prep_time_reduction_pct": 78.5
     }
 
+# Executive KPI Cards
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Total Invoices Ingested", f"{metrics_res.get('total_invoices', 0):,}")
@@ -92,6 +96,7 @@ with col4:
 
 st.divider()
 
+# Invoice Inspection & Filtering
 st.subheader("📋 Invoice Anomaly & Compliance Inspector")
 
 status_filter = st.selectbox("Filter by Status", ["ALL", "FLAGGED", "APPROVED", "PENDING"])
@@ -133,6 +138,9 @@ else:
 
 st.divider()
 
+# ---------------------------------------------------------------------------
+# Agentic audit view — drives the real ReAct agent via POST /audit
+# ---------------------------------------------------------------------------
 st.subheader("🤖 Agentic Audit — ReAct agent on demand")
 
 st.markdown(

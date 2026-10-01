@@ -35,6 +35,10 @@ sys.path.insert(0, str(EVALS_DIR))  # for judge.py
 from judge import get_judge  # noqa: E402
 
 
+# ---------------------------------------------------------------------------
+# Dependency stubs: run with stdlib + requests only, no Postgres, no dotenv,
+# no tenacity, no sqlalchemy.
+# ---------------------------------------------------------------------------
 def _install_stubs():
     dotenv = types.ModuleType("dotenv")
     dotenv.load_dotenv = lambda *a, **k: None
@@ -83,6 +87,9 @@ _spec.loader.exec_module(_auditor_mod)
 AgentAuditor = _auditor_mod.AgentAuditor
 
 
+# ---------------------------------------------------------------------------
+# Prompt construction: mirrors AgentAuditor.audit_invoice's prompt format.
+# ---------------------------------------------------------------------------
 def build_prompt(inv, anomaly_score):
     return f"""
             You are ProcureAI Enterprise Compliance Auditor. Analyze the following high-risk invoice and produce a strict JSON audit brief.
@@ -126,6 +133,12 @@ HEURISTIC_SCORES = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Canned responder: deterministic test double for the LLM in mock mode.
+# Applies straightforward rules to the invoice record and emits a brief in the
+# exact schema the real auditor requests. High mock scores validate the
+# harness plumbing, not the LLM.
+# ---------------------------------------------------------------------------
 def canned_brief(inv):
     n = inv["invoice_number"]
     v = inv["vendor_name"]
@@ -245,6 +258,9 @@ def canned_brief(inv):
     raise ValueError(f"unknown fraud_type {ft!r}")
 
 
+# ---------------------------------------------------------------------------
+# Eval run
+# ---------------------------------------------------------------------------
 def run():
     with open(EVALS_DIR / "golden_invoices.json") as f:
         invoices = json.load(f)["invoices"]
@@ -281,6 +297,7 @@ def run():
             }
         )
 
+    # ---- aggregates ----
     n = len(results)
     verdict_acc = sum(r["verdict_match"] for r in results) / n
     mean_recall = sum(r["findings_recall"] for r in results) / n
@@ -291,6 +308,7 @@ def run():
         t["match"] += r["verdict_match"]
         t["recall"] += r["findings_recall"]
 
+    # ---- stdout summary ----
     print(f"\nProcureAI evals: {n} golden invoices | responder={'gemini-live' if use_real_llm else 'canned-mock'} | judge={judge.name}")
     print("-" * 96)
     print(f"{'invoice':<10} {'type':<16} {'expected':<8} {'got':<8} {'verdict':<7} {'recall':<6} notes")
@@ -308,6 +326,7 @@ def run():
     for t, s in by_type.items():
         print(f"  {t:<16} acc {s['match']/s['n']:.1%}  recall {s['recall']/s['n']:.3f}  (n={s['n']})")
 
+    # ---- markdown report ----
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# ProcureAI Eval Baseline Report",

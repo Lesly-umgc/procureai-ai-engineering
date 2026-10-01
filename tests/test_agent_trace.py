@@ -18,6 +18,10 @@ from core.agent.tools import TOOLS as TOOL_REGISTRY
 from tests.conftest import act, final_verdict, queue_llm
 
 
+# ---------------------------------------------------------------------------
+# _dispatch
+# ---------------------------------------------------------------------------
+
 class TestDispatch:
     def test_unknown_tool_returns_error_dict(self, clean_invoice):
         agent = AuditAgent(llm_fn=lambda prompt: final_verdict())
@@ -80,6 +84,10 @@ class TestDispatch:
         assert out["vendor_id"] == "V-T1"
         assert out["prior_invoices"] == 3
 
+
+# ---------------------------------------------------------------------------
+# Trace instrumentation
+# ---------------------------------------------------------------------------
 
 SWEEP = [
     "verify_arithmetic",

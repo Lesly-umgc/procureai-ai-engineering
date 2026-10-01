@@ -12,6 +12,10 @@ from core.agent.tools import (
 )
 
 
+# ---------------------------------------------------------------------------
+# verify_arithmetic
+# ---------------------------------------------------------------------------
+
 class TestVerifyArithmetic:
     def test_clean_invoice_ok(self, clean_invoice):
         out = verify_arithmetic(clean_invoice)
@@ -56,6 +60,10 @@ class TestVerifyArithmetic:
         assert out["lines_ok"] is True
         assert out["ok"] is True
 
+
+# ---------------------------------------------------------------------------
+# find_duplicates
+# ---------------------------------------------------------------------------
 
 def _hist_row(inv_id, vendor="V-T1", po="PO-T1", amount=1080.0, date="2026-01-01"):
     return {
@@ -106,6 +114,10 @@ class TestFindDuplicates:
         assert out == {"duplicate_found": False, "matches": []}
 
 
+# ---------------------------------------------------------------------------
+# check_po
+# ---------------------------------------------------------------------------
+
 class TestCheckPo:
     def test_within_limit(self, clean_invoice, clean_po):
         out = check_po(clean_invoice, clean_po)
@@ -149,9 +161,13 @@ class TestCheckPo:
         assert out["near_10k_threshold"] is True
 
     def test_not_near_threshold(self, clean_invoice, clean_po):
-        out = check_po(clean_invoice, clean_po)
+        out = check_po(clean_invoice, clean_po)  # total 1080
         assert out["near_10k_threshold"] is False
 
+
+# ---------------------------------------------------------------------------
+# assess_vendor
+# ---------------------------------------------------------------------------
 
 class TestAssessVendor:
     def test_clean_vendor_no_ghost_signals(self, clean_vendor, vendor_history):

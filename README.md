@@ -1,7 +1,7 @@
 # ProcureAI — Enterprise Invoice Auditing & Compliance Engine
 
 An agentic invoice-auditing system that combines a tuned XGBoost anomaly
-classifier with a ReAct LLM auditor over deterministic verification tools.
+classifier with a LangGraph ReAct LLM auditor over deterministic verification tools.
 Every headline number below is measured by a rerunnable script in this repo.
 
 ## Results
@@ -10,14 +10,15 @@ Every headline number below is measured by a rerunnable script in this repo.
 |---|---|---|
 | Anomaly-classification accuracy | **97.59%** (0.88 ROC AUC), held-out 20% split of 250,000 invoices | `proofs/prove_accuracy.py` |
 | Audit-prep time reduction | **99.87%** vs a 4-minute-per-invoice manual baseline | `proofs/prove_efficiency.py` |
-| Agentic audit verdict accuracy | **93.3%** (28/30, 95% Wilson CI 78.7%–98.2%) on the 30-invoice golden set | `evals/agent_report.md` |
-| Agentic audit findings recall | **0.900** mean, 0 agent errors | `evals/agent_report.md` |
+| Agentic audit verdict accuracy | **93.3%** (28/30, 95% Wilson CI 78.7%–98.2%) on the 30-invoice golden set, graded by a live LLM judge | `evals/agent_report_llmjudge_r3.md` |
+| Agentic audit findings recall | **0.867** mean, 0 agent errors | `evals/agent_report_llmjudge_r3.md` |
 | Test suite | **53 tests**, all green, no live API or database | `pytest tests/` |
 
 The agent eval ran live against Gemini `gemini-3.5-flash-lite` (free tier)
-with a deterministic rule-based judge. 100% verdict accuracy on all five
-fraud classes; the two misses were `NORMAL` false positives (`INV-3002`,
-`INV-3003`). See `evals/agent_report.md` for the full ledger and
+as a LangGraph `StateGraph` (`reason` → `act` → `finalize`), graded by a live
+LLM judge (`JUDGE_MODE=gemini`). The two misses were a `NORMAL` false positive
+(`INV-3003`, thin vendor history) and a `SPLIT_PO` miss (`INV-3015`). See
+`evals/agent_report_llmjudge_r3.md` for the full ledger and
 `docs/PROJECT_DOCUMENTATION.md` §4.3 for the run history.
 
 ## Features
@@ -25,7 +26,8 @@ fraud classes; the two misses were `NORMAL` false positives (`INV-3002`,
 - **Hybrid anomaly detection** — XGBoost (500 trees, depth 6, lr 0.05) on
   engineered invoice features: PO-match ratios, price variance, threshold
   proximity, tax-ratio consistency.
-- **ReAct agent auditor** — a Gemini-powered loop over 5 deterministic
+- **LangGraph ReAct agent auditor** — a Gemini-powered `StateGraph` with
+  `reason` → `act` → `finalize` nodes over 5 deterministic
   tools (`score_invoice_xgb`, `verify_arithmetic`, `find_duplicates`,
   `check_po`, `assess_vendor`) plus 2 optional pgvector retrieval tools
   (`find_similar_invoices`, `retrieve_policy`), emitting a structured
@@ -57,7 +59,7 @@ raw text + 384-d MiniLM embedding ──► PostgreSQL 16 + pgvector
 feature engineering ──► XGBoost risk score (anomaly_engine.py)
         │  score > 0.80
         ▼
-ReAct agent (Gemini) ──► 5 deterministic tools + 2 retrieval tools
+LangGraph ReAct agent (Gemini) ──► 5 deterministic tools + 2 retrieval tools
         │
         ▼
 structured audit brief ──► FastAPI (/audit) ──► Streamlit dashboard
@@ -72,7 +74,7 @@ classification is planned future work (tracked in
 ```
 ├── api/                 FastAPI app (/health, /metrics, /invoices, /audit)
 ├── core/                anomaly_engine.py, document_ai.py, legacy auditor
-│   └── agent/           ReAct auditor, 5 deterministic tools, 2 retrieval
+│   └── agent/           LangGraph ReAct auditor, 5 deterministic tools, 2 retrieval
 │                        tools, free-tier LLM throttling
 ├── database/            SQLAlchemy models, DDL, pgvector indexes
 ├── dashboard/           Streamlit executive dashboard
@@ -153,7 +155,7 @@ All secrets come from the environment — nothing is committed. Copy
 | `DATABASE_URL` | `postgresql+psycopg2://procureai:procureai@localhost:5432/procureai_db` | SQLAlchemy connection string |
 | `APP_DB_USER` / `APP_DB_PASSWORD` / `APP_DB_NAME` | `procureai` / `procureai` / `procureai_db` | Compose app-role credentials (override for anything beyond a local demo) |
 | `PROCUREAI_API_URL` | `http://localhost:8000` | Dashboard → API base URL |
-| `AGENT_MAX_STEPS` | `8` | ReAct loop step cap |
+| `AGENT_MAX_STEPS` | `8` | LangGraph ReAct graph step cap |
 | `GEMINI_FREE_TIER_RPM` | `15` | Client-side rate limit for the free tier |
 
 ## API reference
@@ -172,23 +174,29 @@ LLM/tool call counts, token usage, and cost (0.0 on the free tier).
 ## Evaluation
 
 Agent evals use a 30-invoice golden set (`evals/golden_invoices.json`,
-5 per fraud class) and a deterministic rule-based judge:
+5 per fraud class) with a mock judge (deterministic, default) or a live LLM
+judge (`JUDGE_MODE=gemini`):
 
 ```bash
 # fast, deterministic: scripted LLM + mock judge (no API key needed)
-python3 evals/run_agent_evals.py --judge mock
+python3 evals/run_agent_evals.py --mock-llm
 
 # live: real Gemini agent, mock judge
 export GEMINI_API_KEY=your_key_here
-python3 evals/run_agent_evals.py --judge mock --live
+python3 evals/run_agent_evals.py
+
+# live agent, graded by the LLM judge
+JUDGE_MODE=gemini python3 evals/run_agent_evals.py \
+  --results evals/agent_results_llmjudge.json \
+  --report evals/agent_report_llmjudge.md
 ```
 
-Reports land in `evals/agent_report.md` / `evals/agent_results.json`.
-Known limitations are documented, not hidden: the two `NORMAL` false
-positives, weaker duplicate findings recall (0.600), and evaluator-label
-leakage in the duplicate-history fixture construction
-(`docs/PROJECT_DOCUMENTATION.md` §4.3) — the 93.3% stands as the measured
-result of the corrected-tool run, not a final number.
+Reports land in `evals/agent_report*.md` / `evals/agent_results*.json`.
+Known limitations are documented, not hidden: the persistent `NORMAL` false
+positive on thin vendor history (`INV-3003`), weaker duplicate findings
+recall, and evaluator-label leakage in the duplicate-history fixture
+construction (`docs/PROJECT_DOCUMENTATION.md` §4.3) — the 93.3% stands as
+the measured result of the live LLM-judged run, not a final number.
 
 Accuracy and efficiency proofs:
 

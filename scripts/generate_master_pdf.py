@@ -277,47 +277,37 @@ def generate_pdf():
 
     dir_tree = """
 ProcureAI/
-├── .env.example                  # Environment template (copy to .env; GEMINI_API_KEY)
+├── .env                          # Environment variables (GEMINI_API_KEY)
 ├── requirements.txt              # Python dependencies (pinned versions)
-├── requirements-dev.txt          # Dev/test dependencies
-├── LICENSE                       # MIT license
+├── planner.md                    # Original project specification
+├── ProcureAI_Technical_Mastery_Guide.pdf  # This document
+├── ProcureAI_Technical_Deep_Dive.pdf      # Executive briefing
+├── uvicorn.log                   # FastAPI server logs
+├── venv/                         # Virtual environment (excluded from repo)
 │
 ├── database/                     # Database layer
+│   ├── __init__.py
 │   └── db.py                     # SQLAlchemy models, DDL, pgvector indexes, connection pool
 │
 ├── core/                         # Core AI/ML engines
+│   ├── __init__.py
 │   ├── document_ai.py            # Tesseract OCR, embedding pipeline
 │   ├── anomaly_engine.py         # XGBoost training, feature engineering, scoring
-│   ├── agent_auditor.py          # Legacy rate-limited Gemini audit loop
-│   └── agent/                    # ReAct agent
-│       ├── agentic_auditor.py    # ReAct loop over deterministic tools
-│       ├── tools.py              # 5 deterministic verification tools
-│       ├── retrieval.py          # 2 optional pgvector retrieval tools
-│       └── llm_throttle.py       # Free-tier rate limiting + model allowlist
+│   └── agent_auditor.py          # Rate-limited Gemini Flash agentic audit loop
 │
 ├── api/                          # FastAPI backend
-│   └── main.py                   # /health, /metrics, /invoices, /audit, /audit/run
+│   ├── __init__.py
+│   └── main.py                   # REST endpoints: /health, /metrics, /invoices, /audit/run
 │
 ├── dashboard/                    # Streamlit frontend
-│   └── app.py                    # Executive KPIs, anomaly table, agentic audit view
-│
-├── docker/                       # Postgres first-boot hook (least-privilege role)
-├── Dockerfile                    # API + dashboard image
-├── docker-compose.yml            # One-command reviewer stack
-│
-├── docs/                         # Full project documentation
-├── evals/                        # 30-invoice golden set, judges, runners, reports
-├── policies/                     # 8 synthetic policy snippets (retrieval corpus)
-├── proofs/                       # Rerunnable accuracy + efficiency proofs
+│   ├── __init__.py
+│   └── app.py                    # Executive KPI cards, anomaly table, inspector view
 │
 ├── scripts/                      # Operational scripts
-│   ├── synthesize.py             # 250K invoice synthesis with fraud injection
-│   ├── generate_data.py          # DB loader (streams in 5K batches)
-│   ├── seed_policies.py          # Policy corpus seeding with real embeddings
-│   ├── demo_walkthrough.py       # Live input-to-output demonstration
-│   └── ci_secret_scan.sh         # CI secret-scan script
-│
-└── tests/                        # 53-test pytest suite
+│   ├── generate_data.py          # 250K invoice synthesis with fraud injection
+│   ├── demo_walkthrough.py       # Live input→output demonstration
+│   └── generate_pdf.py           # Executive briefing PDF generator
+│   └── generate_master_pdf.py    # This comprehensive guide generator
 """
     story.append(Paragraph(dir_tree, code_style))
     story.append(PageBreak())

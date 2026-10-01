@@ -23,6 +23,10 @@ sys.path.insert(
 )
 
 
+# ---------------------------------------------------------------------------
+# Fixture invoices
+# ---------------------------------------------------------------------------
+
 def _line(desc="widgets", qty=10, unit=100.0, po_unit=100.0):
     return {
         "description": desc,
@@ -81,6 +85,10 @@ def vendor_history(clean_vendor):
     ]
 
 
+# ---------------------------------------------------------------------------
+# Scripted mock LLM
+# ---------------------------------------------------------------------------
+
 def act(name: str) -> str:
     return json.dumps(
         {"thought": f"test: call {name}", "action": name, "action_input": {}}
@@ -135,6 +143,10 @@ def sweep_llm():
         ]
     )
 
+
+# ---------------------------------------------------------------------------
+# XGBoost warmup (once per session)
+# ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="session")
 def xgb_warmed():

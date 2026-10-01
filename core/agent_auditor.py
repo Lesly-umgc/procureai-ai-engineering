@@ -36,6 +36,7 @@ class AgentAuditor:
             
             if response.status_code != 200:
                 print(f"Gemini API error {response.status_code}: {response.text}")
+                # Fallback to gemini-flash-latest
                 fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={self.api_key}"
                 response = requests.post(fallback_url, headers=headers, json=payload, timeout=30)
 

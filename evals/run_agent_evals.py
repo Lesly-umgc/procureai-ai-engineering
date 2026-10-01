@@ -66,6 +66,9 @@ DEFAULT_RESULTS = os.path.join(EVALS, "agent_results.json")
 DEFAULT_REPORT = os.path.join(EVALS, "agent_report.md")
 
 
+# --------------------------------------------------------------------------- #
+# deterministic mock LLM (dry-run only: exercises the ReAct loop, no API)
+# --------------------------------------------------------------------------- #
 def make_mock_llm():
     """Canned ReAct backend: calls verify_arithmetic, then a FLAG verdict.
 
@@ -97,6 +100,9 @@ def make_mock_llm():
     return mock_llm
 
 
+# --------------------------------------------------------------------------- #
+# eval machinery
+# --------------------------------------------------------------------------- #
 def train_xgb_for_tools():
     """Train the XGBoost model backing score_invoice_xgb (synthetic data)."""
     vendors = make_vendors()
@@ -266,6 +272,19 @@ def summarize(rows: list) -> dict:
 
 def render_report(meta: dict, rows: list, summary: dict) -> str:
     s = summary
+    if meta["judge"] == "mock":
+        judge_note = (
+            "- The mock judge is deterministic and rule-based; verdict aliases "
+            "(APPROVED/FLAGGED/REJECTED) are normalized before comparison."
+        )
+    else:
+        judge_note = (
+            "- The judge is a live LLM (Gemini, same model family as the agent) "
+            "grading each brief against the golden record; verdict aliases "
+            "(APPROVED/FLAGGED/REJECTED) are normalized before comparison. "
+            "Same-family judging can favor the agent's phrasing, so treat this "
+            "as a secondary signal alongside the mock-judge run."
+        )
     lines = [
         "# ProcureAI Agent Eval Report",
         "",
@@ -274,7 +293,8 @@ def render_report(meta: dict, rows: list, summary: dict) -> str:
         f"Golden set: `{s['n']}` invoices "
         f"({', '.join(f'{t}: {d['n']}' for t, d in sorted(s['by_type'].items()))})",
         f"Responder: **live Gemini `{meta['model']}`** via `core/agent/agentic_auditor.py` "
-        "(ReAct loop over deterministic tools)",
+        "(LangGraph ReAct agent: `reason` -> `act` -> `finalize` graph over "
+        "deterministic tools)",
         f"Judge: **{meta['judge']}** (`JUDGE_MODE`)",
         "",
         "## Headline metrics",
@@ -322,8 +342,7 @@ def render_report(meta: dict, rows: list, summary: dict) -> str:
         "- LLM calls are paced to the free-tier rate limit with retries and a "
         "circuit breaker; all logged text is redacted so API keys cannot leak "
         "into this report.",
-        "- The mock judge is deterministic and rule-based; verdict aliases "
-        "(APPROVED/FLAGGED/REJECTED) are normalized before comparison.",
+        judge_note,
         "",
         "Compare with `evals/baseline_report.md` (legacy single-prompt auditor) "
         "to measure the agent's improvement.",
@@ -353,6 +372,7 @@ def main() -> int:
 
     mock_mode = args.mock_llm
 
+    # --- config checks: fail fast, loudly ---
     if not mock_mode and not os.getenv("GEMINI_API_KEY"):
         print(redact("ERROR: GEMINI_API_KEY is not set. Live agent eval needs a key.\n"
                      "Run with --mock-llm for a credential-free harness self-test."), file=sys.stderr)
@@ -399,6 +419,7 @@ def main() -> int:
         f.write(results_text)
     print(f"\nWrote results JSON: {args.results}")
 
+    # --- report: live mode only (mock runs must never mint an agent report) ---
     if not mock_mode and not args.no_report:
         report_text = render_report(meta, rows, summary)
         with open(args.report, "w") as f:
@@ -407,6 +428,7 @@ def main() -> int:
     elif mock_mode:
         print("\n(mock mode: agent_report.md NOT written — see banner above)")
 
+    # --- gate ---
     failures = []
     if summary["verdict_accuracy"] < args.min_accuracy:
         failures.append(

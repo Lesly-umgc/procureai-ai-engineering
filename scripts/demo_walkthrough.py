@@ -9,6 +9,7 @@ def run_demo():
     print(" 🛡️ PROCUREAI: END-TO-END INPUT & OUTPUT DEMONSTRATION")
     print("="*80)
 
+    # 1. INPUT SAMPLE (Unstructured Vendor Receipt / Invoice Data)
     input_receipt = {
         "invoice_number": "INV-2025-DEMO-999",
         "vendor_name": "Apex Tech Solutions",
@@ -25,13 +26,16 @@ def run_demo():
     print(json.dumps(input_receipt, indent=2))
     print("-"*80)
 
+    # 2. PROCESSING PIPELINE
     print("\n⚙️ [2] PROCESSING PIPELINE EXECUTION:")
-
+    
+    # Document AI & Embedding
     doc_processor = DocumentAIProcessor()
     doc_result = doc_processor.process_invoice_image("non_existent.png")
     print(f"   • OCR & Layout Parsing: Extracted {len(doc_result['tokens'])} tokens from receipt.")
     print(f"   • Dense Vector Embedding: Generated {len(doc_result['embedding'])}-dimensional vector (stored in pgvector).")
 
+    # Anomaly Scoring Engine
     anomaly_engine = AnomalyScoringEngine()
     score = anomaly_engine.score_invoice(
         subtotal=input_receipt["subtotal"],
@@ -41,11 +45,13 @@ def run_demo():
     )
     print(f"   • XGBoost Tabular Anomaly Score: {score:.4f} (High Risk / Threshold Dodging)")
 
+    # Agentic Auditor (Gemini Flash)
     print("   • Agentic LLM Auditor: Invoking Gemini Flash policy reasoning engine...")
-
+    
     # Simulate database record for audit if not present in DB
     db = SessionLocal()
     try:
+        # Check or create dummy record for demonstration
         vendor = db.query(Vendor).first()
         po = db.query(PurchaseOrder).first()
         

@@ -32,6 +32,7 @@ class TestScoreInvoiceXgb:
         assert "error" not in out
         assert 0.0 <= out["anomaly_score"] <= 1.0
         assert out["risk_level"] in ("low", "medium", "high")
+        # rounded to 4dp
         assert out["anomaly_score"] == round(out["anomaly_score"], 4)
 
     def test_untrained_engine_returns_error_not_crash(

@@ -22,11 +22,13 @@ or ``gemini-3.1-flash-lite`` (same default as core/agent_auditor.py).
 import json
 import os
 import re
+import time
 
 import requests
 
 VALID_VERDICTS = ("APPROVE", "FLAG", "REJECT")
 
+# Verdict spellings the agent might emit -> canonical form.
 VERDICT_ALIASES = {
     "APPROVE": "APPROVE",
     "APPROVED": "APPROVE",
@@ -41,6 +43,20 @@ VERDICT_ALIASES = {
 STOPWORDS = frozenset(
     "the a an and or of to in on for with is are was were be by as at from that this it its".split()
 )
+
+# The LLM judge has no rate limiter of its own; pace its calls to the free
+# tier (~15 RPM) so a 429 is never silently recorded as a verdict miss.
+_JUDGE_MIN_INTERVAL_S = 4.5
+_judge_next_ok = 0.0
+
+
+def _pace_judge() -> None:
+    global _judge_next_ok
+    now = time.monotonic()
+    wait = _judge_next_ok - now
+    if wait > 0:
+        time.sleep(wait)
+    _judge_next_ok = time.monotonic() + _JUDGE_MIN_INTERVAL_S
 
 GEMINI_API_URL_TMPL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -167,20 +183,28 @@ class GeminiJudge:
             f"findings: {json.dumps(expected.get('expected_findings', []))}\n\n"
             "AGENT brief:\n" + json.dumps(brief, indent=2)
         )
-        try:
-            raw = self._call(user_text)
-            parsed = self._extract_json(raw)
-            return {
-                "verdict_match": bool(parsed.get("verdict_match", False)),
-                "findings_recall": float(parsed.get("findings_recall", 0.0)),
-                "notes": str(parsed.get("notes", ""))[:500],
-            }
-        except Exception as e:  # never let one bad judge call kill a whole eval run
-            return {
-                "verdict_match": False,
-                "findings_recall": 0.0,
-                "notes": f"judge call failed: {e}",
-            }
+        last_error = None
+        for attempt in range(2):
+            try:
+                _pace_judge()
+                raw = self._call(user_text)
+                parsed = self._extract_json(raw)
+                return {
+                    "verdict_match": bool(parsed.get("verdict_match", False)),
+                    "findings_recall": float(parsed.get("findings_recall", 0.0)),
+                    "notes": str(parsed.get("notes", ""))[:500],
+                }
+            except Exception as e:  # noqa: BLE001 - retried once, then recorded
+                last_error = e
+                if attempt == 0:
+                    time.sleep(10)
+        # never let judge failures kill a whole eval run — but record them
+        # honestly instead of silently passing the row
+        return {
+            "verdict_match": False,
+            "findings_recall": 0.0,
+            "notes": f"judge call failed after retry: {last_error}",
+        }
 
 
 def get_judge():
