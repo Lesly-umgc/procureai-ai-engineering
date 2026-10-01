@@ -149,7 +149,7 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Agentic audit view — drives the real ReAct agent via POST /audit
 # ---------------------------------------------------------------------------
-st.subheader("🤖 Agentic Audit — ReAct agent on demand")
+st.subheader("🤖 Agentic Audit — LangGraph ReAct agent on demand")
 
 st.markdown(
     "Runs the real `AuditAgent` (ReAct loop over deterministic tools, free-tier "
