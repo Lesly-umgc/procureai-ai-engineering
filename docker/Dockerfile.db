@@ -1,0 +1,12 @@
+# ProcureAI database image.
+#
+# Stock pgvector/pgvector:pg16 plus our privileged first-boot hook baked
+# into /docker-entrypoint-initdb.d with an explicit chmod. The hook used to
+# arrive via a read-only bind mount, but host file-sharing quirks (observed
+# on Docker Desktop for Mac: the entrypoint failed with
+# "bad interpreter: Permission denied") can mangle the executable bit on
+# bind-mounted files. Baking it in makes the hook deterministic on every
+# host — `docker compose up --build` is all a reviewer needs.
+FROM pgvector/pgvector:pg16
+COPY docker/db-init/01-procureai.sh /docker-entrypoint-initdb.d/01-procureai.sh
+RUN chmod +x /docker-entrypoint-initdb.d/01-procureai.sh

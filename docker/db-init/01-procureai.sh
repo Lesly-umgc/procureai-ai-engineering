@@ -12,9 +12,10 @@
 # Everything after this — tables, IVFFlat indexes, policy seeding — runs
 # as the unprivileged app role via the `init-db` service (database/db.py).
 #
-# This file is *sourced* by the postgres entrypoint (not executed in a
-# subshell), so keep it `set -e` safe and avoid `exit` on the happy path
-# idioms that would kill the entrypoint itself.
+# This file is EXECUTED by the postgres entrypoint in its own shell (it is
+# baked into the db image with the executable bit set — see
+# docker/Dockerfile.db). `set -e` applies; `exit 1` fails the boot fast,
+# which is what we want on bad configuration.
 
 set -e
 

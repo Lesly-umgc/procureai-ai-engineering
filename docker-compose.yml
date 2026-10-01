@@ -6,9 +6,11 @@
 #   db        Postgres 16 + pgvector, with a persisted volume.
 #             Privilege design (least privilege, verified 2026-09-21):
 #               * the container boots as the stock `postgres` SUPERUSER,
-#                 which exists only to run docker/db-init/01-procureai.sh
-#                 once at first start (mounted into
-#                 /docker-entrypoint-initdb.d);
+#                 which exists only to run the first-boot hook
+#                 docker/db-init/01-procureai.sh once at first start;
+#                 the hook is baked into the db image (COPY + explicit
+#                 chmod in docker/Dockerfile.db), so host file-sharing
+#                 quirks can never strip its executable bit;
 #               * that hook creates a NON-SUPERUSER `procureai` role, a
 #                 `procureai_db` database owned by it, and the `vector`
 #                 extension (creating an extension requires superuser);
@@ -38,7 +40,9 @@
 
 services:
   db:
-    image: pgvector/pgvector:pg16
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.db
     environment:
       # Bootstrap superuser — used ONLY by the first-boot init hook.
       # Never used by the application itself.
@@ -51,7 +55,6 @@ services:
       APP_DB_NAME: ${APP_DB_NAME:-procureai_db}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     healthcheck:
